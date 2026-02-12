@@ -1,7 +1,7 @@
 """
 Cohere LLM Service with MCP Integration
 Handles intent detection, single and multi-intent queries using Cohere
-FIXED: Proper multi-intent handling
+FULLY FIXED VERSION
 """
 import cohere
 from typing import List, Dict, Any, Optional
@@ -17,6 +17,7 @@ class CohereLLMService:
     """Service for Cohere LLM with MCP tool integration"""
     
     def __init__(self):
+        # FIXED: Use Client (not ClientV2)
         self.client = cohere.Client(api_key=settings.cohere_api_key)
         self.model = settings.cohere_model
     
@@ -49,7 +50,7 @@ class CohereLLMService:
         
         logger.info(f"Available MCP tools: {len(tools)}")
         
-        # Build chat history for Cohere
+        # FIXED: Build chat history in correct Cohere format
         chat_history = []
         if conversation_history:
             for msg in conversation_history:
@@ -59,7 +60,7 @@ class CohereLLMService:
                     "message": msg["content"]
                 })
         
-        # IMPROVED System preamble with explicit multi-intent instructions
+        # System preamble with explicit multi-intent instructions
         preamble = """You are a helpful GST (Goods and Services Tax) assistant for India.
 
 You have access to tools for GST calculations. Use them to help users with:
@@ -102,22 +103,21 @@ When responding:
 Always be accurate and call all necessary tools."""
 
         try:
-            # Call Cohere API with tools
+            # FIXED: Call Cohere API with correct parameters
             response = self.client.chat(
                 message=user_message,
                 model=self.model,
                 preamble=preamble,
                 chat_history=chat_history,
                 tools=tools,
-                temperature=0.1,  # Lower temperature for more deterministic tool calling
-                force_single_step=False  # Allow multiple tool calls
+                temperature=0.1
             )
             
             logger.info(f"Cohere response received")
             logger.info(f"Tool calls in response: {len(response.tool_calls) if hasattr(response, 'tool_calls') and response.tool_calls else 0}")
             
             # Process response
-            return await self._process_response(response, user_message, mcp_client, tools, preamble)
+            return await self._process_response(response, user_message, mcp_client, tools, preamble, chat_history)
         
         except Exception as e:
             logger.error(f"Error processing query with Cohere: {e}")
@@ -129,7 +129,8 @@ Always be accurate and call all necessary tools."""
         user_message: str,
         mcp_client: Any,
         tools: List[Dict[str, Any]],
-        preamble: str
+        preamble: str,
+        chat_history: List[Dict[str, str]]
     ) -> Dict[str, Any]:
         """Process Cohere's response and handle tool calls"""
         
@@ -191,11 +192,11 @@ Always be accurate and call all necessary tools."""
                     
                     logger.error(f"[{idx}/{num_tools}] ✗ Failed: {tool_name} - {error_msg}")
             
-            # CRITICAL: Get final response from Cohere with ALL tool results
+            # Get final response from Cohere with ALL tool results
             if tool_calls:
                 logger.info(f"Sending {len(tool_calls)} tool result(s) back to Cohere...")
                 
-                # Prepare tool results for Cohere
+                # FIXED: Prepare tool results in correct Cohere format
                 tool_results = []
                 for i, tool_call in enumerate(response.tool_calls):
                     if mcp_results[i]["success"]:
@@ -209,16 +210,18 @@ Always be accurate and call all necessary tools."""
                             "outputs": [{"error": mcp_results[i]["error"]}]
                         })
                 
-                # Get final response with tool results
+                # FIXED: Get final response with correct parameters
                 try:
+                    # Build updated chat history
+                    updated_history = chat_history + [
+                        {"role": "USER", "message": user_message}
+                    ]
+                    
                     final_response = self.client.chat(
-                        message="",  # Empty message for tool result continuation
+                        message="",  # Empty message for tool results
                         model=self.model,
-                        preamble=preamble,  # Include preamble for context
-                        chat_history=[
-                            {"role": "USER", "message": user_message},
-                            {"role": "CHATBOT", "message": text_response}
-                        ],
+                        preamble=preamble,
+                        chat_history=updated_history,
                         tools=tools,
                         tool_results=tool_results,
                         temperature=0.3

@@ -11,7 +11,8 @@ class Settings(BaseSettings):
     # Cohere API
     cohere_api_key: str
     llm_provider: str = "cohere"
-    cohere_model: str = "command-r-plus"
+    cohere_model: str = "command-r7b-12-2024"
+
     # Your GST API
     gst_api_url: Optional[str] = None
     gst_api_key: Optional[str] = None

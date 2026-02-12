@@ -1,6 +1,7 @@
 """
 MCP Client Wrapper for Cohere
 Connects to MCP server and provides tool execution in Cohere format
+FULLY FIXED VERSION
 """
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -104,7 +105,7 @@ class MCPClient:
         """
         Get tools in Cohere API format
         
-        Cohere expects tools in a specific format with parameter_definitions
+        FIXED: Proper Cohere tool format with type field
         
         Returns:
             List of tools formatted for Cohere API
@@ -123,11 +124,12 @@ class MCPClient:
                     cohere_type = self._map_type_to_cohere(param_type)
                     
                     parameter_definitions[param_name] = {
-                        "description": param_schema.get("description", ""),
+                        "description": param_schema.get("description", f"Parameter {param_name}"),
                         "type": cohere_type,
                         "required": param_name in tool["input_schema"].get("required", [])
                     }
             
+            # FIXED: Correct Cohere tool format
             cohere_tool = {
                 "name": tool["name"],
                 "description": tool["description"],
@@ -135,6 +137,8 @@ class MCPClient:
             }
             
             cohere_tools.append(cohere_tool)
+        
+        logger.debug(f"Converted {len(cohere_tools)} tools to Cohere format")
         
         return cohere_tools
     
