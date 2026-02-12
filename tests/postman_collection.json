@@ -1,0 +1,207 @@
+{
+  "info": {
+    "name": "Fintech MCP Demo - GST Calculator",
+    "description": "Test collection for MCP-based GST calculator with Claude",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        }
+      }
+    },
+    {
+      "name": "List MCP Tools",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/mcp/tools",
+          "host": ["{{base_url}}"],
+          "path": ["api", "mcp", "tools"]
+        }
+      }
+    },
+    {
+      "name": "Single Intent - Calculate GST",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"message\": \"Calculate GST on 10000 rupees at 18%\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/chat",
+          "host": ["{{base_url}}"],
+          "path": ["api", "chat"]
+        }
+      }
+    },
+    {
+      "name": "Single Intent - Reverse GST",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"message\": \"What is the base amount if total is 11800 with 18% GST?\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/chat",
+          "host": ["{{base_url}}"],
+          "path": ["api", "chat"]
+        }
+      }
+    },
+    {
+      "name": "Multi-Intent - Calculate + Breakdown",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"message\": \"Calculate GST on 5000 at 12% and also show me the CGST and SGST breakdown\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/chat",
+          "host": ["{{base_url}}"],
+          "path": ["api", "chat"]
+        }
+      }
+    },
+    {
+      "name": "Multi-Intent - Compare Rates",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"message\": \"Compare GST on 10000 with rates 5%, 12%, 18%, and 28%\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/chat",
+          "host": ["{{base_url}}"],
+          "path": ["api", "chat"]
+        }
+      }
+    },
+    {
+      "name": "Single Intent - Validate GSTIN",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"message\": \"Validate this GSTIN: 29ABCDE1234F1Z5\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/chat",
+          "host": ["{{base_url}}"],
+          "path": ["api", "chat"]
+        }
+      }
+    },
+    {
+      "name": "Direct MCP Call - Calculate GST",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tool_name\": \"calculate_gst\",\n  \"arguments\": {\n    \"base_amount\": 10000,\n    \"gst_rate\": 18\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/mcp/call-tool",
+          "host": ["{{base_url}}"],
+          "path": ["api", "mcp", "call-tool"]
+        }
+      }
+    },
+    {
+      "name": "Direct MCP Call - GST Breakdown",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tool_name\": \"gst_breakdown\",\n  \"arguments\": {\n    \"base_amount\": 10000,\n    \"gst_rate\": 18,\n    \"is_intra_state\": true\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/mcp/call-tool",
+          "host": ["{{base_url}}"],
+          "path": ["api", "mcp", "call-tool"]
+        }
+      }
+    },
+    {
+      "name": "Natural Language - Complex Query",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"message\": \"I need to calculate GST on twenty-five thousand at eighteen percent. Then compare it with 12% and show me which is better\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/chat",
+          "host": ["{{base_url}}"],
+          "path": ["api", "chat"]
+        }
+      }
+    }
+  ]
+}
