@@ -7,7 +7,7 @@ import httpx
 import logging
 
 logger = logging.getLogger(__name__)
-
+  
 
 class GSTCalculator:
     """GST calculation business logic"""

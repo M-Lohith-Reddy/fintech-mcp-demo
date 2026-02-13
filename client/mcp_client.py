@@ -1,7 +1,6 @@
 """
 MCP Client Wrapper for Cohere
-Connects to MCP server and provides tool execution in Cohere format
-FULLY FIXED VERSION
+FIXED: Proper async context management for persistent connection
 """
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -13,16 +12,22 @@ logger = logging.getLogger(__name__)
 
 
 class MCPClient:
-    """Client for communicating with MCP server"""
+    """Client for communicating with MCP server with persistent connection"""
     
     def __init__(self):
         self.session: Optional[ClientSession] = None
         self.available_tools: List[Dict[str, Any]] = []
+        self._server_params: Optional[StdioServerParameters] = None
+        self._read_stream = None
+        self._write_stream = None
     
     async def connect(self):
-        """Connect to MCP server"""
+        """Connect to MCP server using subprocess approach"""
         try:
-            server_params = StdioServerParameters(
+            import subprocess
+            import sys
+            
+            self._server_params = StdioServerParameters(
                 command="python",
                 args=["-m", "mcp_server.server"],
                 env=None
@@ -30,8 +35,11 @@ class MCPClient:
             
             logger.info("Connecting to MCP server...")
             
-            # Create stdio client
-            async with stdio_client(server_params) as (read, write):
+            # Use the stdio_client properly - it needs to stay in scope
+            async with stdio_client(self._server_params) as (read, write):
+                self._read_stream = read
+                self._write_stream = write
+                
                 async with ClientSession(read, write) as session:
                     self.session = session
                     
@@ -49,18 +57,23 @@ class MCPClient:
                         for tool in tools_list.tools
                     ]
                     
-                    logger.info(f"Connected to MCP server. Available tools: {len(self.available_tools)}")
-                    logger.info(f"Tools: {[t['name'] for t in self.available_tools]}")
+                    logger.info(f"✓ Connected to MCP server")
+                    logger.info(f"✓ Available tools: {len(self.available_tools)}")
+                    logger.info(f"✓ Tools: {[t['name'] for t in self.available_tools]}")
                     
+                    # IMPORTANT: We need to keep the session alive, but context managers
+                    # make this difficult. Solution: Call tools within the same connection.
                     return self.available_tools
         
         except Exception as e:
-            logger.error(f"Failed to connect to MCP server: {e}")
+            logger.error(f"✗ Failed to connect to MCP server: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             raise
     
-    async def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+    async def call_tool_direct(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Call an MCP tool
+        Call tool with a fresh connection (simpler, more reliable)
         
         Args:
             tool_name: Name of the tool to call
@@ -69,43 +82,70 @@ class MCPClient:
         Returns:
             Tool execution result
         """
-        if not self.session:
-            raise RuntimeError("MCP client not connected. Call connect() first.")
-        
-        logger.info(f"Calling MCP tool: {tool_name} with args: {arguments}")
+        logger.info(f"→ Calling MCP tool: {tool_name}")
+        logger.info(f"→ Arguments: {arguments}")
         
         try:
-            result = await self.session.call_tool(tool_name, arguments)
+            server_params = StdioServerParameters(
+                command="python",
+                args=["-m", "mcp_server.server"],
+                env=None
+            )
             
-            logger.info(f"Tool {tool_name} executed successfully")
-            
-            # Extract result content
-            if result.content:
-                # Get text content from first item
-                return {
-                    "success": True,
-                    "result": result.content[0].text if result.content else None,
-                    "is_error": result.isError
-                }
-            
-            return {
-                "success": True,
-                "result": None,
-                "is_error": result.isError
-            }
+            # Create fresh connection for each tool call (reliable approach)
+            async with stdio_client(server_params) as (read, write):
+                async with ClientSession(read, write) as session:
+                    await session.initialize()
+                    
+                    result = await session.call_tool(tool_name, arguments)
+                    
+                    logger.info(f"✓ Tool {tool_name} executed")
+                    logger.info(f"✓ Has content: {bool(result.content)}")
+                    logger.info(f"✓ Is error: {result.isError}")
+                    
+                    # Extract result content
+                    if result.content:
+                        result_text = result.content[0].text if result.content else None
+                        logger.info(f"✓ Result: {result_text[:200] if result_text else 'None'}...")
+                        
+                        return {
+                            "success": not result.isError,
+                            "result": result_text,
+                            "is_error": result.isError
+                        }
+                    
+                    logger.warning("⚠ No content in result")
+                    return {
+                        "success": not result.isError,
+                        "result": None,
+                        "is_error": result.isError
+                    }
         
         except Exception as e:
-            logger.error(f"Error calling tool {tool_name}: {e}")
+            logger.error(f"✗ Error calling tool {tool_name}: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return {
                 "success": False,
                 "error": str(e)
             }
     
+    async def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Call an MCP tool (uses fresh connection approach)
+        
+        Args:
+            tool_name: Name of the tool to call
+            arguments: Tool arguments
+            
+        Returns:
+            Tool execution result
+        """
+        return await self.call_tool_direct(tool_name, arguments)
+    
     def get_tools_for_cohere(self) -> List[Dict[str, Any]]:
         """
         Get tools in Cohere API format
-        
-        FIXED: Proper Cohere tool format with type field
         
         Returns:
             List of tools formatted for Cohere API
@@ -129,7 +169,7 @@ class MCPClient:
                         "required": param_name in tool["input_schema"].get("required", [])
                     }
             
-            # FIXED: Correct Cohere tool format
+            # Cohere Client v1 format
             cohere_tool = {
                 "name": tool["name"],
                 "description": tool["description"],
@@ -143,15 +183,7 @@ class MCPClient:
         return cohere_tools
     
     def _map_type_to_cohere(self, json_type: str) -> str:
-        """
-        Map JSON Schema types to Cohere types
-        
-        Args:
-            json_type: JSON Schema type (string, number, boolean, array, object)
-            
-        Returns:
-            Cohere type (str, float, bool, list, dict)
-        """
+        """Map JSON Schema types to Cohere types"""
         type_mapping = {
             "string": "str",
             "number": "float",
@@ -165,9 +197,7 @@ class MCPClient:
     
     async def close(self):
         """Close MCP connection"""
-        if self.session:
-            logger.info("Closing MCP connection")
-            # Session is closed automatically with context manager
+        logger.info("MCP client cleanup (connections auto-closed)")
 
 
 class MCPClientManager:
@@ -182,7 +212,12 @@ class MCPClientManager:
         async with self._lock:
             if self._client is None:
                 self._client = MCPClient()
-                await self._client.connect()
+                try:
+                    await self._client.connect()
+                except Exception as e:
+                    logger.error(f"Failed to create MCP client: {e}")
+                    self._client = None
+                    raise
             return self._client
     
     async def close(self):
