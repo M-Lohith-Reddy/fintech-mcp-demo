@@ -16,3 +16,18 @@ __pycache__/
 # OS files
 .DS_Store
 Thumbs.db
+
+# ----------------------
+# ML / Data (IMPORTANT)
+# ----------------------
+
+# Datasets
+datasets/
+
+# Trained models
+models/
+*.pkl
+*.joblib
+
+# Temporary files
+*.csv~
