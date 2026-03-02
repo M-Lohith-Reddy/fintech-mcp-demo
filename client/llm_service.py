@@ -1,25 +1,26 @@
 """
-Cohere LLM Service with MCP Integration
-Handles intent detection, single and multi-intent queries using Cohere
-FULLY FIXED VERSION
+Local ML Service - NO External LLM
+Uses custom domain-specific ML+NLP model for intent detection
+100% on-premise, no data leaves your infrastructure
 """
-import cohere
 from typing import List, Dict, Any, Optional
 import json
 import logging
-from config.config import settings
-from client.mcp_client import mcp_client_manager
+from ml_intent_classifier import intent_classifier
+from client.mcp_client import gst_client_manager, info_client_manager, redbus_client_manager
 
 logger = logging.getLogger(__name__)
 
 
-class CohereLLMService:
-    """Service for Cohere LLM with MCP tool integration"""
+class LocalMLService:
+    """
+    Local ML-based service for intent detection and tool calling.
+    Replaces external LLM (Cohere) for confidential data security.
+    """
     
     def __init__(self):
-        # FIXED: Use Client (not ClientV2)
-        self.client = cohere.Client(api_key=settings.cohere_api_key)
-        self.model = settings.cohere_model
+        self.intent_classifier = intent_classifier
+        logger.info("✓ Local ML Service initialized (NO external LLM)")
     
     async def process_query(
         self,
@@ -27,300 +28,338 @@ class CohereLLMService:
         conversation_history: Optional[List[Dict[str, str]]] = None
     ) -> Dict[str, Any]:
         """
-        Process user query with Cohere + MCP tools
+        Process user query using LOCAL ML model
         
-        Handles:
-        - Single intent queries
-        - Multi-intent queries
-        - Parameter extraction
-        - Tool execution via MCP
+        NO data sent to external APIs
+        All processing happens on-premise
         
         Args:
             user_message: User's natural language query
-            conversation_history: Previous conversation messages
+            conversation_history: Previous conversation (for context)
             
         Returns:
-            Response with intents, tool calls, and natural language response
+            Response with intents, tool calls, and results
         """
-        logger.info(f"Processing query with Cohere: {user_message[:100]}...")
+        logger.info(f"Processing query locally: {user_message[:100]}...")
         
-        # Get MCP client and tools
-        mcp_client = await mcp_client_manager.get_client()
-        tools = mcp_client.get_tools_for_cohere()
+        # STEP 1: ML-based intent detection (LOCAL)
+        analysis = self.intent_classifier.process_query(user_message)
         
-        logger.info(f"Available MCP tools: {len(tools)}")
+        intents_detected = analysis.get("intents_detected", [])
+        tool_calls_specs = analysis.get("tool_calls", [])
         
-        # FIXED: Build chat history in correct Cohere format
-        chat_history = []
-        if conversation_history:
-            for msg in conversation_history:
-                role = "USER" if msg["role"] == "user" else "CHATBOT"
-                chat_history.append({
-                    "role": role,
-                    "message": msg["content"]
-                })
+        logger.info(f"✓ Intents detected: {intents_detected}")
+        logger.info(f"✓ Tool calls: {len(tool_calls_specs)}")
         
-        # System preamble with explicit multi-intent instructions
-        preamble = """You are a helpful GST (Goods and Services Tax) assistant for India.
-
-You have access to tools for GST calculations. Use them to help users with:
-- Calculating GST amounts and totals
-- Reverse calculating base amounts from totals
-- Getting detailed GST breakdowns (CGST, SGST, IGST)
-- Comparing different GST rates
-- Validating GSTIN numbers
-
-CRITICAL MULTI-INTENT INSTRUCTIONS:
-When users ask for MULTIPLE operations in a SINGLE query, you MUST call MULTIPLE tools.
-
-Examples of multi-intent queries:
-1. "Calculate GST on 5000 at 12% and show breakdown"
-   → Call BOTH: calculate_gst AND gst_breakdown
-
-2. "Calculate GST on 10000 at 18% and also compare with 12%"
-   → Call BOTH: calculate_gst AND compare_gst_rates
-
-3. "Show me the breakdown and also validate GSTIN 29ABCDE1234F1Z5"
-   → Call BOTH: gst_breakdown AND validate_gstin
-
-4. "Calculate GST, show breakdown, and compare rates"
-   → Call ALL THREE tools
-
-IMPORTANT RULES:
-✓ If user says "and", "also", "then", "additionally" → USE MULTIPLE TOOLS
-✓ Each distinct request needs its own tool call
-✓ Don't summarize - actually call each tool separately
-✓ Call tools in the order requested
-✓ Use the exact parameter values from the query
-
-When responding:
-1. Identify ALL intents in the user's message
-2. Call the appropriate tool for EACH intent
-3. Format currency in Indian Rupees (₹)
-4. Provide clear, organized responses
-5. Show results for each operation separately
-
-Always be accurate and call all necessary tools."""
-
-        try:
-            # FIXED: Call Cohere API with correct parameters
-            response = self.client.chat(
-                message=user_message,
-                model=self.model,
-                preamble=preamble,
-                chat_history=chat_history,
-                tools=tools,
-                temperature=0.1
-            )
-            
-            logger.info(f"Cohere response received")
-            logger.info(f"Tool calls in response: {len(response.tool_calls) if hasattr(response, 'tool_calls') and response.tool_calls else 0}")
-            
-            # Process response
-            return await self._process_response(response, user_message, mcp_client, tools, preamble, chat_history)
+        # STEP 2: Get MCP clients
+        gst_client = await gst_client_manager.get_client()
+        info_client = await info_client_manager.get_client()
+        redbus_client = await redbus_client_manager.get_client()
         
-        except Exception as e:
-            logger.error(f"Error processing query with Cohere: {e}")
-            raise
-    
-    async def _process_response(
-        self,
-        response: Any,
-        user_message: str,
-        mcp_client: Any,
-        tools: List[Dict[str, Any]],
-        preamble: str,
-        chat_history: List[Dict[str, str]]
-    ) -> Dict[str, Any]:
-        """Process Cohere's response and handle tool calls"""
+        # Map tool names to clients
+        tool_client_map = {}
+        for tool in gst_client.available_tools:
+            tool_client_map[tool["name"]] = gst_client
+        for tool in redbus_client.available_tools:
+            tool_client_map[tool["name"]] = redbus_client
+        for tool in info_client.available_tools:
+            tool_client_map[tool["name"]] = info_client
         
-        tool_calls = []
-        text_response = response.text if response.text else ""
-        intents_detected = []
+        # STEP 3: Execute tool calls via MCP
         mcp_results = []
         
-        # Check if Cohere wants to use tools
-        if hasattr(response, 'tool_calls') and response.tool_calls:
-            num_tools = len(response.tool_calls)
-            logger.info(f"✓ Cohere requested {num_tools} tool call(s)")
-            logger.info(f"✓ Multi-intent detected: {num_tools > 1}")
+        for idx, tool_spec in enumerate(tool_calls_specs, 1):
+            tool_name = tool_spec["tool_name"]
+            tool_parameters = tool_spec["parameters"]
             
-            for idx, tool_call in enumerate(response.tool_calls, 1):
-                tool_name = tool_call.name
-                tool_parameters = tool_call.parameters
+            logger.info(f"[{idx}/{len(tool_calls_specs)}] Executing: {tool_name}")
+            logger.info(f"  Parameters: {tool_parameters}")
+            
+            # Route to correct MCP client
+            client = tool_client_map.get(tool_name)
+            if not client:
+                logger.error(f"No client for tool: {tool_name}")
+                mcp_results.append({
+                    "tool": tool_name,
+                    "input": tool_parameters,
+                    "error": f"Tool '{tool_name}' not found",
+                    "success": False
+                })
+                continue
+            
+            try:
+                # Execute tool via MCP
+                result = await client.call_tool(tool_name, tool_parameters)
                 
-                intents_detected.append(tool_name)
-                
-                logger.info(f"[{idx}/{num_tools}] Executing MCP tool: {tool_name}")
-                logger.info(f"[{idx}/{num_tools}] Parameters: {tool_parameters}")
-                
-                # Execute MCP tool
-                result = await mcp_client.call_tool(
-                    tool_name,
-                    tool_parameters
-                )
-                
-                # Parse result (MCP returns JSON string)
                 if result.get("success") and result.get("result"):
                     try:
-                        parsed_result = json.loads(result["result"])
+                        parsed = json.loads(result["result"]) if isinstance(result["result"], str) else result["result"]
                     except json.JSONDecodeError:
-                        parsed_result = result["result"]
+                        parsed = result["result"]
                     
                     mcp_results.append({
                         "tool": tool_name,
                         "input": tool_parameters,
-                        "result": parsed_result,
+                        "result": parsed,
                         "success": True
                     })
                     
-                    tool_calls.append({
-                        "name": tool_name,
-                        "parameters": tool_parameters,
-                        "result": parsed_result
-                    })
-                    
-                    logger.info(f"[{idx}/{num_tools}] ✓ Success: {tool_name}")
+                    logger.info(f"[{idx}/{len(tool_calls_specs)}] ✓ Success")
+                
                 else:
-                    error_msg = result.get("error", "Unknown error")
+                    error_msg = result.get("error", "Tool returned no result")
                     mcp_results.append({
                         "tool": tool_name,
                         "input": tool_parameters,
                         "error": error_msg,
                         "success": False
                     })
-                    
-                    logger.error(f"[{idx}/{num_tools}] ✗ Failed: {tool_name} - {error_msg}")
+                    logger.error(f"[{idx}/{len(tool_calls_specs)}] ✗ Failed: {error_msg}")
             
-            # Get final response from Cohere with ALL tool results
-            if tool_calls:
-                logger.info(f"Sending {len(tool_calls)} tool result(s) back to Cohere...")
-                
-                # FIXED: Prepare tool results in correct Cohere format
-                tool_results = []
-                for i, tool_call in enumerate(response.tool_calls):
-                    if mcp_results[i]["success"]:
-                        tool_results.append({
-                            "call": tool_call,
-                            "outputs": [mcp_results[i]["result"]]
-                        })
-                    else:
-                        tool_results.append({
-                            "call": tool_call,
-                            "outputs": [{"error": mcp_results[i]["error"]}]
-                        })
-                
-                # FIXED: Get final response with correct parameters
-                try:
-                    # Build updated chat history
-                    updated_history = chat_history + [
-                        {"role": "USER", "message": user_message}
-                    ]
-                    
-                    final_response = self.client.chat(
-                        message="",  # Empty message for tool results
-                        model=self.model,
-                        preamble=preamble,
-                        chat_history=updated_history,
-                        tools=tools,
-                        tool_results=tool_results,
-                        temperature=0.3
-                    )
-                    
-                    text_response = final_response.text
-                    logger.info("✓ Got final response from Cohere with tool results")
-                    
-                except Exception as e:
-                    logger.error(f"Error getting final response: {e}")
-                    # Fallback: Create response manually
-                    text_response = self._create_fallback_response(mcp_results, user_message)
+            except Exception as e:
+                logger.error(f"[{idx}/{len(tool_calls_specs)}] Exception: {e}")
+                mcp_results.append({
+                    "tool": tool_name,
+                    "input": tool_parameters,
+                    "error": str(e),
+                    "success": False
+                })
         
-        else:
-            # No tools were called
-            logger.warning(f"⚠ No tools called by Cohere for query: {user_message[:100]}")
-            logger.info("Using direct Cohere response without tool execution")
+        # STEP 4: Generate response (template-based, NO LLM)
+        response_text = self._generate_response(mcp_results, intents_detected, user_message)
         
         return {
             "success": True,
             "intents_detected": intents_detected,
             "is_multi_intent": len(intents_detected) > 1,
             "tool_calls": mcp_results,
-            "response": text_response,
+            "response": response_text,
             "stop_reason": "complete",
+            "ml_model": "local_domain_specific",
             "debug_info": {
-                "total_tools_called": len(intents_detected),
-                "tools": intents_detected
+                "total_tools_called": len(mcp_results),
+                "successful_tools": len([r for r in mcp_results if r.get("success")]),
+                "tools": intents_detected,
+                "entities_extracted": analysis.get("entities", {})
             }
         }
     
-    def _create_fallback_response(self, mcp_results: List[Dict], user_message: str) -> str:
-        """Create a fallback response if Cohere fails to generate one"""
+    def _generate_response(
+        self, 
+        mcp_results: List[Dict], 
+        intents: List[str],
+        user_query: str
+    ) -> str:
+        """
+        Generate natural language response using templates (NO LLM)
+        
+        Args:
+            mcp_results: Results from MCP tool execution
+            intents: Detected intents
+            user_query: Original user query
+            
+        Returns:
+            Natural language response string
+        """
         if not mcp_results:
-            return "I processed your request but encountered an issue generating a response."
+            return "I couldn't find any relevant information for your query. Please try rephrasing."
         
         response_parts = []
         
-        for idx, result in enumerate(mcp_results, 1):
-            tool_name = result.get("tool", "unknown")
+        for result in mcp_results:
+            tool_name = result.get("tool", "")
             
-            if result.get("success"):
-                tool_result = result.get("result", {})
+            if not result.get("success"):
+                error = result.get("error", "Unknown error")
+                response_parts.append(f"❌ Error in {tool_name}: {error}")
+                continue
+            
+            data = result.get("result", {})
+            
+            # Template-based response generation
+            if tool_name == "calculate_gst":
+                base = data.get("base_amount", 0)
+                gst = data.get("gst_amount", 0)
+                total = data.get("total_amount", 0)
+                rate = data.get("gst_rate", 0)
+                response_parts.append(
+                    f"**GST Calculation Result:**\n"
+                    f"• Base Amount: ₹{base:,.2f}\n"
+                    f"• GST @ {rate}%: ₹{gst:,.2f}\n"
+                    f"• Total Amount: ₹{total:,.2f}"
+                )
+            
+            elif tool_name == "reverse_calculate_gst":
+                total = data.get("total_amount", 0)
+                base = data.get("base_amount", 0)
+                gst = data.get("gst_amount", 0)
+                rate = data.get("gst_rate", 0)
+                response_parts.append(
+                    f"**Reverse GST Calculation:**\n"
+                    f"• Total Amount: ₹{total:,.2f}\n"
+                    f"• Base Amount (excluding GST): ₹{base:,.2f}\n"
+                    f"• GST Amount @ {rate}%: ₹{gst:,.2f}"
+                )
+            
+            elif tool_name == "gst_breakdown":
+                breakdown = data.get("breakdown", {})
+                base = data.get("base_amount", 0)
+                btype = breakdown.get("type", "Unknown")
+                cgst = breakdown.get("cgst", 0)
+                sgst = breakdown.get("sgst", 0)
+                igst = breakdown.get("igst", 0)
                 
-                # Format based on tool type
-                if tool_name == "calculate_gst":
-                    base = tool_result.get("base_amount", 0)
-                    gst = tool_result.get("gst_amount", 0)
-                    total = tool_result.get("total_amount", 0)
-                    rate = tool_result.get("gst_rate", 0)
+                response_parts.append(
+                    f"**GST Breakdown ({btype}):**\n"
+                    f"• Base Amount: ₹{base:,.2f}\n"
+                    f"• CGST: ₹{cgst:,.2f}\n"
+                    f"• SGST: ₹{sgst:,.2f}\n"
+                    f"• IGST: ₹{igst:,.2f}"
+                )
+            
+            elif tool_name == "compare_gst_rates":
+                base = data.get("base_amount", 0)
+                comparisons = data.get("comparisons", [])
+                response_parts.append(f"**GST Rate Comparison for ₹{base:,.2f}:**")
+                for comp in comparisons:
+                    rate = comp.get("rate", 0)
+                    total = comp.get("total_amount", 0)
+                    diff = comp.get("difference_from_lowest", 0)
+                    response_parts.append(f"• {rate}%: ₹{total:,.2f} (+₹{diff:,.2f})")
+            
+            elif tool_name == "validate_gstin":
+                valid = data.get("valid", False)
+                gstin = data.get("gstin", "")
+                components = data.get("components", {})
+                
+                if valid:
+                    state = components.get("state_code", "")
+                    pan = components.get("pan_number", "")
                     response_parts.append(
-                        f"**GST Calculation:**\n"
-                        f"- Base Amount: ₹{base:,.2f}\n"
-                        f"- GST ({rate}%): ₹{gst:,.2f}\n"
-                        f"- Total Amount: ₹{total:,.2f}"
+                        f"**GSTIN Validation: ✅ Valid**\n"
+                        f"• GSTIN: {gstin}\n"
+                        f"• State Code: {state}\n"
+                        f"• PAN: {pan}"
                     )
-                
-                elif tool_name == "gst_breakdown":
-                    breakdown = tool_result.get("breakdown", {})
+                else:
+                    error = data.get("error", "Invalid format")
                     response_parts.append(
-                        f"**GST Breakdown ({breakdown.get('type', 'Unknown')}):**\n"
-                        f"- CGST: ₹{breakdown.get('cgst', 0):,.2f}\n"
-                        f"- SGST: ₹{breakdown.get('sgst', 0):,.2f}\n"
-                        f"- IGST: ₹{breakdown.get('igst', 0):,.2f}"
-                    )
-                
-                elif tool_name == "reverse_calculate_gst":
-                    base = tool_result.get("base_amount", 0)
-                    gst = tool_result.get("gst_amount", 0)
-                    total = tool_result.get("total_amount", 0)
-                    response_parts.append(
-                        f"**Reverse Calculation:**\n"
-                        f"- Total Amount: ₹{total:,.2f}\n"
-                        f"- Base Amount: ₹{base:,.2f}\n"
-                        f"- GST Amount: ₹{gst:,.2f}"
-                    )
-                
-                elif tool_name == "compare_gst_rates":
-                    comparisons = tool_result.get("comparisons", [])
-                    response_parts.append("**Rate Comparison:**")
-                    for comp in comparisons:
-                        response_parts.append(
-                            f"- {comp.get('rate')}%: Total ₹{comp.get('total_amount', 0):,.2f}"
-                        )
-                
-                elif tool_name == "validate_gstin":
-                    valid = tool_result.get("valid", False)
-                    gstin = tool_result.get("gstin", "")
-                    response_parts.append(
-                        f"**GSTIN Validation:**\n"
-                        f"- GSTIN: {gstin}\n"
-                        f"- Status: {'✓ Valid' if valid else '✗ Invalid'}"
+                        f"**GSTIN Validation: ❌ Invalid**\n"
+                        f"• GSTIN: {gstin}\n"
+                        f"• Reason: {error}"
                     )
             
+            # Onboarding info templates
+            elif tool_name == "get_company_onboarding_guide":
+                title = data.get("title", "Company Onboarding Guide")
+                steps = data.get("steps", [])
+                completion = data.get("completion_message", "")
+                
+                response_parts.append(f"**{title}**\n")
+                for step in steps:
+                    step_num = step.get("step_number", 0)
+                    step_title = step.get("title", "")
+                    response_parts.append(f"\n**Step {step_num}: {step_title}**")
+                    
+                    if "actions" in step:
+                        for action in step["actions"]:
+                            response_parts.append(f"  • {action}")
+                    
+                    if "required_fields" in step:
+                        response_parts.append("  Required fields:")
+                        for field in step["required_fields"][:5]:  # Show first 5
+                            fname = field.get("field", "")
+                            response_parts.append(f"    - {fname}")
+                
+                if completion:
+                    response_parts.append(f"\n{completion}")
+            
+            elif tool_name == "get_bank_onboarding_guide":
+                title = data.get("title", "Bank Onboarding Guide")
+                steps = data.get("steps", [])
+                completion = data.get("completion_message", "")
+                
+                response_parts.append(f"**{title}**\n")
+                for step in steps:
+                    step_num = step.get("step_number", 0)
+                    step_title = step.get("title", "")
+                    response_parts.append(f"\n**Step {step_num}: {step_title}**")
+                    
+                    if "actions" in step:
+                        for action in step["actions"]:
+                            response_parts.append(f"  • {action}")
+                
+                if completion:
+                    response_parts.append(f"\n{completion}")
+            
+            elif tool_name == "get_vendor_onboarding_guide":
+                title = data.get("title", "Vendor Onboarding Guide")
+                steps = data.get("steps", [])
+                completion = data.get("completion_message", "")
+                
+                response_parts.append(f"**{title}**\n")
+                for step in steps:
+                    step_num = step.get("step_number", 0)
+                    step_title = step.get("title", "")
+                    response_parts.append(f"\n**Step {step_num}: {step_title}**")
+                
+                if completion:
+                    response_parts.append(f"\n{completion}")
+            
+            elif tool_name == "get_supported_banks":
+                total = data.get("total_banks", 0)
+                banks = data.get("banks", [])
+                response_parts.append(f"**Supported Banks ({total} total):**")
+                for bank in banks[:10]:  # Show first 10
+                    name = bank.get("name", "")
+                    ifsc = bank.get("ifsc_prefix", "")
+                    response_parts.append(f"• {name} (IFSC: {ifsc}****)")
+            
+            elif tool_name == "get_validation_formats":
+                formats = data.get("formats", {})
+                response_parts.append("**Validation Formats:**")
+                for doc_type, doc_data in list(formats.items())[:5]:  # Show first 5
+                    pattern = doc_data.get("pattern", "")
+                    example = doc_data.get("example", "")
+                    response_parts.append(f"• {doc_type}: {pattern}")
+                    if example:
+                        response_parts.append(f"  Example: {example}")
+            
+            elif tool_name in ["get_onboarding_faq", "get_common_errors", "get_company_required_documents"]:
+                # Generic template for structured data
+                title = data.get("title", "Information")
+                response_parts.append(f"**{title}**")
+                response_parts.append("(Detailed information available - please check the full response)")
+            elif tool_name in ["redbus_search_redirect", "redbus_booking_redirect", "redbus_offers_redirect", "redbus_tracking_redirect", "get_popular_routes","open_redbus"]:
+                # RedBus-specific templates
+                if tool_name == "redbus_search_redirect":
+                    response_parts.append("I've found the best bus options for your route and date. Click here to view them: [RedBus Search Results](https://www.redbus.in/)")
+                elif tool_name == "redbus_booking_redirect":
+                    response_parts.append("You can complete your bus booking here: [RedBus Booking Page](https://www.redbus.in/)")
+                elif tool_name == "redbus_offers_redirect":
+                    response_parts.append("Check out the latest offers on RedBus: [RedBus Offers](https://www.redbus.in/offers)")
+                elif tool_name == "redbus_tracking_redirect":
+                    response_parts.append("Track your bus in real-time here: [RedBus Tracking](https://www.redbus.in/track-bus)")
+                elif tool_name == "get_popular_routes":
+                    routes = data.get("popular_routes", [])
+                    response_parts.append("Here are some popular bus routes:")
+                    for route in routes[:10]:  # Show first 10
+                        source = route.get("source", "")
+                        destination = route.get("destination", "")
+                        response_parts.append(f"• {source} → {destination}")
+                elif tool_name == "open_redbus":
+                    base = "https://your-api-domain.com"   # your FastAPI server
+                    redirect_to = result["input"].get("redirect_to", "web")
+                    url = f"{base}/redbus"
+                    if redirect_to == "app":
+                        url += "?platform=app"
+                    response_parts.append(f"**Opening RedBus 🚌**\n[Click here to open RedBus]({url})")
             else:
-                response_parts.append(f"**Error in {tool_name}:** {result.get('error', 'Unknown error')}")
+                # Fallback for unknown tools
+                response_parts.append(f"✓ {tool_name} executed successfully")
         
         return "\n\n".join(response_parts)
 
 
 # Global service instance
-claude_service = CohereLLMService()  # Keep same name for compatibility
+claude_service = LocalMLService()  # Keep same variable name for compatibility
