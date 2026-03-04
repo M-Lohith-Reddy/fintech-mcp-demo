@@ -202,9 +202,15 @@ class ProductionIntentClassifier:
                 "required_params": ["policy_number", "amount"],
                 "keywords": [
                     "pay insurance", "pay premium", "insurance payment",
-                    "premium payment", "policy payment"
+                    "premium payment", "policy payment", "renew insurance",
+                    "insurance renewal", "pay policy", "settle premium",
+                    "clear insurance", "insurance due payment", "pay insurance premium",
+                    "premium due pay", "policy renewal payment"
                 ],
-                "multi_triggers": ["pay insurance", "pay premium", "insurance payment", "premium payment"]
+                "multi_triggers": [
+                    "pay insurance", "pay premium", "insurance payment",
+                    "premium payment", "renew insurance", "pay policy", "insurance renewal"
+                ]
             },
             "get_insurance_payment_history": {
                 "tool": "get_insurance_payment_history",
@@ -327,9 +333,16 @@ class ProductionIntentClassifier:
                 "required_params": ["establishment_code", "month"],
                 "keywords": [
                     "esic dues", "esic contribution", "esic pending",
-                    "esic payment due", "employee state insurance"
+                    "esic payment due", "employee state insurance",
+                    "esic amount due", "how much esic", "esic liability",
+                    "esic this month", "esic challan amount", "check esic dues",
+                    "esic outstanding", "esic payable", "esi dues", "esi contribution"
                 ],
-                "multi_triggers": ["esic dues", "esic contribution", "esic pending", "esic payment due"]
+                "multi_triggers": [
+                    "esic dues", "esic contribution", "esic pending",
+                    "esic payment due", "esic outstanding", "esic payable",
+                    "esi dues", "esi contribution", "check esic"
+                ]
             },
             "pay_esic": {
                 "tool": "pay_esic",
@@ -414,9 +427,20 @@ class ProductionIntentClassifier:
                 "required_params": ["pan"],
                 "keywords": [
                     "tax dues", "pending tax", "tax liability",
-                    "tds dues", "advance tax due", "tax outstanding"
+                    "tds dues", "advance tax due", "tax outstanding",
+                    "how much tax", "tax payable", "income tax dues",
+                    "check tax dues", "tax pending", "any tax due",
+                    "corporate tax dues", "what tax is due", "tax owed",
+                    "pending tds", "tds outstanding", "tds liability",
+                    "advance tax pending", "tax dues check", "tax balance due",
+                    "how much tds", "remaining tax", "tax to be paid"
                 ],
-                "multi_triggers": ["tax dues", "pending tax", "tds dues", "advance tax due"]
+                "multi_triggers": [
+                    "tax dues", "pending tax", "tds dues", "advance tax due",
+                    "tax outstanding", "tax payable", "income tax dues",
+                    "tds outstanding", "tax pending", "how much tax",
+                    "tax owed", "pending tds", "tax to be paid"
+                ]
             },
             "pay_direct_tax": {
                 "tool": "pay_direct_tax",
@@ -470,9 +494,17 @@ class ProductionIntentClassifier:
                 "required_params": ["account_number"],
                 "keywords": [
                     "account details", "account info", "bank account details",
-                    "ifsc details", "account information"
+                    "ifsc details", "account information",
+                    "show account details", "account holder name",
+                    "branch details", "ifsc code", "bank branch info",
+                    "account type details", "who is account holder",
+                    "account number details", "bank details for account"
                 ],
-                "multi_triggers": ["account details", "account info", "bank account details"]
+                "multi_triggers": [
+                    "account details", "account info", "bank account details",
+                    "ifsc details", "branch details", "ifsc code",
+                    "account holder name", "account information"
+                ]
             },
             "get_linked_accounts": {
                 "tool": "get_linked_accounts",
@@ -537,9 +569,24 @@ class ProductionIntentClassifier:
                 "required_params": [],
                 "keywords": [
                     "upcoming dues", "all dues", "what is due",
-                    "payment dues", "scheduled dues", "due payments"
+                    "payment dues", "scheduled dues", "due payments",
+                    "dues this month", "what payments are due", "show all dues",
+                    "pending dues", "dues next month", "what is coming due",
+                    "upcoming payments", "scheduled payments", "dues overview",
+                    "due soon", "payments coming up", "next dues",
+                    "show upcoming dues", "list all dues", "dues summary",
+                    "what dues are pending", "upcoming compliance dues",
+                    "all upcoming payments", "payments due this month",
+                    "dues next 30 days", "what needs to be paid", "due list",
+                    "payment schedule", "upcoming liabilities", "dues calendar",
+                    "what do i need to pay", "payments coming", "show due payments"
                 ],
-                "multi_triggers": ["upcoming dues", "all dues", "payment dues", "due payments"]
+                "multi_triggers": [
+                    "upcoming dues", "all dues", "payment dues", "due payments",
+                    "dues this month", "upcoming payments", "show all dues",
+                    "pending dues", "due soon", "dues summary", "due list",
+                    "what is due", "payments due", "dues next"
+                ]
             },
             "get_overdue_payments": {
                 "tool": "get_overdue_payments",
@@ -640,18 +687,44 @@ class ProductionIntentClassifier:
                 "required_params": ["field", "value"],
                 "keywords": [
                     "update company", "change company details", "edit company",
-                    "modify company info", "update business details"
+                    "modify company info", "update business details",
+                    "change company address", "update company name",
+                    "edit company info", "change business details",
+                    "update company profile", "modify company details",
+                    "change company email", "update company phone",
+                    "edit business info", "update contact details",
+                    "change registered address", "update company data",
+                    "modify business info", "edit company profile",
+                    "change company information", "update company contact",
+                    "modify company profile", "change company data",
+                    "update my company", "edit my company details",
+                    "change my business details", "update business profile",
+                    "modify business profile", "change company field"
                 ],
-                "multi_triggers": ["update company", "change company details", "edit company"]
+                "multi_triggers": [
+                    "update company", "change company details", "edit company",
+                    "modify company", "change company address", "update company name",
+                    "change business details", "update company profile",
+                    "edit company info", "update contact details",
+                    "change registered address", "update my company"
+                ]
             },
             "get_gst_profile": {
                 "tool": "get_gst_profile",
                 "required_params": [],
                 "keywords": [
                     "gst profile", "linked gst", "gst numbers",
-                    "company gstin", "registered gst"
+                    "company gstin", "registered gst",
+                    "my gst numbers", "all gstin", "show gst profile",
+                    "gst registrations", "linked gstin numbers",
+                    "company gst details", "how many gst", "gst linked accounts",
+                    "view gst profile", "gst number list", "registered gstin"
                 ],
-                "multi_triggers": ["gst profile", "linked gst", "company gstin"]
+                "multi_triggers": [
+                    "gst profile", "linked gst", "company gstin",
+                    "my gst numbers", "all gstin", "gst registrations",
+                    "linked gstin", "registered gstin", "gst number list"
+                ]
             },
             "get_authorized_signatories": {
                 "tool": "get_authorized_signatories",
@@ -679,9 +752,18 @@ class ProductionIntentClassifier:
                 "keywords": [
                     "calculate gst", "add gst", "gst on", "apply gst",
                     "gst for", "add tax", "gst amount", "how much gst",
-                    "compute gst", "find gst", "what is gst on"
+                    "compute gst", "find gst", "what is gst on",
+                    "total with gst", "price with gst", "gst calculation",
+                    "calculate tax on", "what will be gst", "gst total",
+                    "including gst", "with 18% gst", "with 12% gst",
+                    "with 5% gst", "with 28% gst", "gst inclusive price",
+                    "final price with gst", "amount after gst"
                 ],
-                "multi_triggers": ["calculate gst", "compute gst", "find gst", "add gst", "gst on"]
+                "multi_triggers": [
+                    "calculate gst", "compute gst", "find gst", "add gst",
+                    "gst on", "gst amount", "gst calculation", "total with gst",
+                    "price with gst", "what is gst on"
+                ]
             },
             "reverse_gst": {
                 "tool": "reverse_calculate_gst",
@@ -849,86 +931,126 @@ class ProductionIntentClassifier:
         queries = []
         labels  = []
 
-        dataset_mapping = dataset_mapping = {
-    # ── Payment 
-    "payment_initiate_500.csv":                  ["initiate_payment"],
-    "payment_status_300.csv":                    ["get_payment_status"],
-    "payment_bulk_upload_300.csv":               ["upload_bulk_payment"],
+        dataset_mapping = {
+            # ── Payment ───────────────────────────────────────────────────────
+            "payment_initiate_500.csv":                  ["initiate_payment"],
+            "payment_status_300.csv":                    ["get_payment_status"],
+            "payment_bulk_upload_300.csv":               ["upload_bulk_payment"],
+            "acknowledge_payment_200.csv":               ["acknowledge_payment"],
+            "cancel_payment_200.csv":                    ["cancel_payment"],
+            "retry_payment_200.csv":                     ["retry_payment"],
+            "validate_beneficiary_200.csv":              ["validate_beneficiary"],
+            "validate_payment_file_200.csv":             ["validate_payment_file"],
+            "get_payment_receipt_200.csv":               ["get_payment_receipt"],
+            "search_transactions_200.csv":               ["search_transactions"],
+            "get_transaction_details_200.csv":           ["get_transaction_details"],
+            "get_pending_transactions_200.csv":          ["get_pending_transactions"],
+            "get_account_summary_200.csv":               ["get_account_summary"],
+            "get_linked_accounts_200.csv":               ["get_linked_accounts"],
+            "set_default_account_200.csv":               ["set_default_account"],
+            "get_authorized_signatories_200.csv":        ["get_authorized_signatories"],
+            "get_cashflow_summary_200.csv":              ["get_cashflow_summary"],
+            "get_spending_analytics_200.csv":            ["get_spending_analytics"],
+            "get_vendor_payment_summary_200.csv":        ["get_vendor_payment_summary"],
+            "get_monthly_report_200.csv":                ["get_monthly_report"],
+            "get_overdue_payments_200.csv":              ["get_overdue_payments"],
+            "get_reminder_list_200.csv":                 ["get_reminder_list"],
+            "delete_reminder_200.csv":                   ["delete_reminder"],
+            "get_gst_payment_history_200.csv":           ["get_gst_payment_history"],
+            "get_epf_payment_history_200.csv":           ["get_epf_payment_history"],
+            "get_esic_payment_history_200.csv":          ["get_esic_payment_history"],
+            "get_insurance_payment_history_200.csv":     ["get_insurance_payment_history"],
+            "get_tax_payment_history_200.csv":           ["get_tax_payment_history"],
+            "get_payroll_history_200.csv":               ["get_payroll_history"],
+            "get_custom_duty_history_200.csv":           ["get_custom_duty_history"],
+            "get_ticket_history_200.csv":                ["get_ticket_history"],
+            "fetch_payroll_summary_200.csv":             ["fetch_payroll_summary"],
+            "fetch_insurance_dues_200.csv":              ["fetch_insurance_dues"],
+            "pay_custom_duty_200.csv":                   ["pay_custom_duty"],
+            "track_custom_duty_payment_200.csv":         ["track_custom_duty_payment"],
+            "create_cd_note_200.csv":                    ["create_cd_note"],
+            "create_proforma_invoice_200.csv":           ["create_proforma_invoice"],
+            "manage_user_roles_200.csv":                 ["manage_user_roles"],
+            "pay_bulk_tax_200.csv":                      ["pay_bulk_tax"],
+            "download_bank_statement_200.csv":           ["download_bank_statement"],
+            "download_transaction_report_200.csv":       ["download_transaction_report"],
+            "chat_with_support_200.csv":                 ["chat_with_support"],
+            "get_contact_details_200.csv":               ["get_contact_details"],
 
-    # ── B2B 
-    "b2b_partner_onboard_400.csv":               ["onboard_business_partner"],
-    "b2b_invoice_send_300.csv":                  ["send_invoice"],
-    "b2b_invoice_receive_300.csv":               ["get_received_invoices"],
-    "b2b_purchase_order_300.csv":                ["create_purchase_order"],
+            # ── B2B ───────────────────────────────────────────────────────────
+            "b2b_partner_onboard_400.csv":               ["onboard_business_partner"],
+            "b2b_invoice_send_300.csv":                  ["send_invoice"],
+            "b2b_invoice_receive_300.csv":               ["get_received_invoices"],
+            "b2b_purchase_order_300.csv":                ["create_purchase_order"],
 
-    # ── Compliance 
-    "gst_pay_400.csv":                           ["pay_gst"],
-    "gst_challan_300.csv":                       ["create_gst_challan"],
-    "epf_pay_400.csv":                           ["pay_epf"],
-    "esic_pay_400.csv":                          ["pay_esic"],
-    "payroll_process_400.csv":                   ["process_payroll"],
-    "tax_direct_400.csv":                        ["pay_direct_tax"],
-    "tax_state_300.csv":                         ["pay_state_tax"],
-    "pay_insurance_premium_200.csv":             ["pay_insurance_premium"],       # NEW ✓
+            # ── Compliance ────────────────────────────────────────────────────
+            "gst_pay_400.csv":                           ["pay_gst"],
+            "gst_challan_300.csv":                       ["create_gst_challan"],
+            "epf_pay_400.csv":                           ["pay_epf"],
+            "esic_pay_400.csv":                          ["pay_esic"],
+            "payroll_process_400.csv":                   ["process_payroll"],
+            "tax_direct_400.csv":                        ["pay_direct_tax"],
+            "tax_state_300.csv":                         ["pay_state_tax"],
+            "pay_insurance_premium_200.csv":             ["pay_insurance_premium"],
 
-    # ── Account & Transactions 
-    "account_balance_300.csv":                   ["get_account_balance"],
-    "account_statement_300.csv":                 ["fetch_bank_statement"],
-    "transaction_history_300.csv":               ["get_transaction_history"],
-    "get_account_details_200.csv":               ["get_account_details"],         # NEW ✓
+            # ── Account & Transactions ────────────────────────────────────────
+            "account_balance_300.csv":                   ["get_account_balance"],
+            "account_statement_300.csv":                 ["fetch_bank_statement"],
+            "transaction_history_300.csv":               ["get_transaction_history"],
+            "get_account_details_200.csv":               ["get_account_details"],
 
-    # ── Dashboard & Dues 
-    "dashboard_400.csv":                         ["get_dashboard_summary"],
-    "dues_upcoming_300.csv":                     ["get_upcoming_dues"],
-    "dues_upcoming_boost_400.csv":               ["get_upcoming_dues"],           # NEW ✓
+            # ── Dashboard & Dues ──────────────────────────────────────────────
+            "dashboard_400.csv":                         ["get_dashboard_summary"],
+            "dues_upcoming_300.csv":                     ["get_upcoming_dues"],
+            "dues_upcoming_boost_400.csv":               ["get_upcoming_dues"],
 
-    # ── Fetch Dues 
-    "fetch_epf_dues_200.csv":                    ["fetch_epf_dues"],              # NEW ✓
-    "fetch_gst_dues_200.csv":                    ["fetch_gst_dues"],              # NEW ✓
-    "fetch_esic_dues_200.csv":                   ["fetch_esic_dues"],             # NEW ✓
-    "fetch_tax_dues_200.csv":                    ["fetch_tax_dues"],              # NEW ✓
+            # ── Fetch Dues ────────────────────────────────────────────────────
+            "fetch_epf_dues_200.csv":                    ["fetch_epf_dues"],
+            "fetch_gst_dues_200.csv":                    ["fetch_gst_dues"],
+            "fetch_esic_dues_200.csv":                   ["fetch_esic_dues"],
+            "fetch_tax_dues_200.csv":                    ["fetch_tax_dues"],
 
-    # ── Reminders
-    "set_payment_reminder_200.csv":              ["set_payment_reminder"],        # NEW ✓
+            # ── Reminders ─────────────────────────────────────────────────────
+            "set_payment_reminder_200.csv":              ["set_payment_reminder"],
 
-    # ── Support 
-    "support_ticket_300.csv":                    ["raise_support_ticket"],
+            # ── Support ───────────────────────────────────────────────────────
+            "support_ticket_300.csv":                    ["raise_support_ticket"],
 
-    # ── GST Calculator 
-    "gst_variations.csv":                        ["calculate_gst"],
-    "reverse_gst_variations.csv":                ["reverse_gst"],
-    "gst_breakdown_variations.csv":              ["gst_breakdown"],
-    "D_rate_comparison_400.csv":                 ["compare_rates"],
-    "E_gstin_validation_300.csv":                ["validate_gstin"],
-    "get_gst_profile_200.csv":                   ["get_gst_profile"],             # NEW ✓
-    "calc_compare_boost_600.csv":                ["calculate_gst", "compare_rates"],  # NEW ✓ Test 4 fix
+            # ── GST Calculator ────────────────────────────────────────────────
+            "gst_variations.csv":                        ["calculate_gst"],
+            "reverse_gst_variations.csv":                ["reverse_gst"],
+            "gst_breakdown_variations.csv":              ["gst_breakdown"],
+            "D_rate_comparison_400.csv":                 ["compare_rates"],
+            "E_gstin_validation_300.csv":                ["validate_gstin"],
+            "get_gst_profile_200.csv":                   ["get_gst_profile"],
+            "calc_compare_boost_600.csv":                ["calculate_gst", "compare_rates"],
 
-    # ── Onboarding — Company 
-    "Company_A_General_Onboarding_500.csv":      ["company_guide"],
-    "Company_B_Required_Documents_300.csv":      ["company_documents"],
-    "Company_C_Field_Questions_300.csv":         ["company_field"],
-    "Company_D_Process_Questions_300.csv":       ["company_process"],
-    "company_process_boost_300.csv":             ["company_process"],             # NEW ✓
-    "company_profile_300.csv":                   ["get_company_profile"],         # NEW ✓
-    "company_update_300.csv":                    ["update_company_details"],      # NEW ✓
+            # ── Onboarding — Company ──────────────────────────────────────────
+            "Company_A_General_Onboarding_500.csv":      ["company_guide"],
+            "Company_B_Required_Documents_300.csv":      ["company_documents"],
+            "Company_C_Field_Questions_300.csv":         ["company_field"],
+            "Company_D_Process_Questions_300.csv":       ["company_process"],
+            "company_process_boost_300.csv":             ["company_process"],
+            "company_profile_300.csv":                   ["get_company_profile"],
+            "company_update_300.csv":                    ["update_company_details"],
 
-    # ── Onboarding — Bank 
-    "csv-export-2026-02-19__3_.csv":             ["bank_guide"],
-    "csv-export-2026-02-19__4_.csv":             ["bank_guide"],
-    "csv-export-2026-02-19__5_.csv":             ["bank_guide"],
-    "csv-export-2026-02-19__6_.csv":             ["bank_guide"],
-    "csv-export-2026-02-19__7_.csv":             ["bank_guide"],
+            # ── Onboarding — Bank ─────────────────────────────────────────────
+            "csv-export-2026-02-19__3_.csv":             ["bank_guide"],
+            "csv-export-2026-02-19__4_.csv":             ["bank_guide"],
+            "csv-export-2026-02-19__5_.csv":             ["bank_guide"],
+            "csv-export-2026-02-19__6_.csv":             ["bank_guide"],
+            "csv-export-2026-02-19__7_.csv":             ["bank_guide"],
 
-    # ── Onboarding — Vendor 
-    "csv-export-2026-02-19.csv":                 ["vendor_guide"],
-    "csv-export-2026-02-19__1_.csv":             ["vendor_guide"],
-    "csv-export-2026-02-19__2_.csv":             ["vendor_guide"],
+            # ── Onboarding — Vendor ───────────────────────────────────────────
+            "csv-export-2026-02-19.csv":                 ["vendor_guide"],
+            "csv-export-2026-02-19__1_.csv":             ["vendor_guide"],
+            "csv-export-2026-02-19__2_.csv":             ["vendor_guide"],
 
-    # ── Multi-Intent 
-    "multi_intent_bank_600.csv":                 "MULTI",
-    "F_multi_intent_400.csv":                    "MULTI",
-    "_MConverter_eu_Multi_Intent_1500.csv":      "MULTI",
-}
+            # ── Multi-Intent ──────────────────────────────────────────────────
+            "multi_intent_bank_600.csv":                 "MULTI",
+            "F_multi_intent_400.csv":                    "MULTI",
+            "_MConverter_eu_Multi_Intent_1500.csv":      "MULTI",
+        }
 
         for filename, intent_label in dataset_mapping.items():
             filepath = os.path.join(self.datasets_path, filename)
@@ -1019,17 +1141,7 @@ class ProductionIntentClassifier:
 
         self.classifier.fit(X_train_vec, y_train_bin)
 
-        # capture probabilities for threshold experiments
-        probabilities_test = self.classifier.predict_proba(X_test_vec)
-        # perform default binary prediction for reporting
         y_pred = self.classifier.predict(X_test_vec)
-
-        # analyze results
-        self._log_label_distribution(y_train)
-        self._report_misclassifications(X_test, y_test, y_pred)
-
-        # threshold tuning (uniform)
-        self._search_thresholds(X_test, probabilities_test, y_test)
 
         from sklearn.metrics import hamming_loss, f1_score
 
@@ -1054,60 +1166,6 @@ class ProductionIntentClassifier:
         logger.info("=" * 70)
 
         self.save_model()
-
-    # ------------------------
-    # Diagnostics helpers
-    # ------------------------
-
-    def _log_label_distribution(self, labels: List[List[str]]) -> None:
-        """Print count of examples per intent in the supplied label set."""
-        counts: Dict[str, int] = {}
-        for lab in labels:
-            for intent in lab:
-                counts[intent] = counts.get(intent, 0) + 1
-        sorted_counts = sorted(counts.items(), key=lambda x: x[1])
-        logger.info("Label distribution (fewest to most examples):")
-        for intent, cnt in sorted_counts:
-            logger.info(f"  {intent:<30} {cnt}")
-
-    def _report_misclassifications(self, X_test: List[str], y_test: List[List[str]], y_pred_bin: Any) -> None:
-        """Log a few test examples where predictions did not exactly match labels."""
-        if hasattr(y_pred_bin, 'tolist'):
-            y_pred = y_pred_bin.tolist()
-        else:
-            y_pred = y_pred_bin
-        mismatches = []
-        for i, (query, true_vec, pred_vec) in enumerate(zip(X_test, y_test, y_pred)):
-            true_intents = set(true_vec)
-            pred_intents = {self.mlb.classes_[idx] for idx, val in enumerate(pred_vec) if val}
-            if true_intents != pred_intents:
-                mismatches.append((query, true_intents, pred_intents))
-        logger.info(f"Found {len(mismatches)} mismatched test samples (exact match). Showing up to 10 examples:")
-        for query, true_intents, pred_intents in mismatches[:10]:
-            logger.info(f"  Query: {query}")
-            logger.info(f"    True : {true_intents}")
-            logger.info(f"    Pred : {pred_intents}")
-
-    def _search_thresholds(self, X_test: List[str], probs: Any, y_test: List[List[str]]) -> None:
-        """Evaluate uniform thresholds to see impact on exact-match accuracy."""
-        best_thresh = None
-        best_score = -1.0
-        from sklearn.metrics import accuracy_score
-        # convert y_test to binary array using same mlb
-        y_test_bin = self.mlb.transform(y_test)
-        for thresh in [i/100 for i in range(10, 91, 5)]:
-            preds_bin = []
-            for vec in probs:
-                flags = [1 if p > thresh else 0 for p in vec]
-                if sum(flags) == 0:
-                    # choose highest probability if none pass threshold
-                    flags[np.argmax(vec)] = 1
-                preds_bin.append(flags)
-            score = accuracy_score(y_test_bin, preds_bin)
-            if score > best_score:
-                best_score = score
-                best_thresh = thresh
-        logger.info(f"Threshold search: best uniform threshold {best_thresh:.2f} => exact-match {best_score*100:.2f}%")
 
     # ========================
     # PREDICTION
@@ -1169,56 +1227,524 @@ class ProductionIntentClassifier:
         return combined[:3]
 
     def _resolve_intent_conflicts(self, query_lower: str, intents: List[str]) -> List[str]:
-        """Suppress spurious co-intents."""
+        """Comprehensive conflict resolution — suppresses all spurious co-intents."""
         resolved = list(intents)
 
-        # Suppress get_account_balance when get_account_summary is present
+        # ═══════════════════════════════════════════════════════════════
+        # GROUP 1: PAYMENT CONFLICTS
+        # ═══════════════════════════════════════════════════════════════
+
+        # initiate_payment should NOT fire alongside get_payment_status
+        # "check payment status" should NOT trigger initiate_payment
+        if "initiate_payment" in resolved and "get_payment_status" in resolved:
+            pay_signals = ["send", "transfer", "pay to", "initiate", "make payment", "fund transfer"]
+            if not any(sig in query_lower for sig in pay_signals):
+                resolved = [i for i in resolved if i != "initiate_payment"]
+
+        # cancel_payment needs explicit cancel signal — NOT on general payment queries
+        if "cancel_payment" in resolved:
+            cancel_signals = ["cancel", "stop", "abort", "revoke", "halt"]
+            if not any(sig in query_lower for sig in cancel_signals):
+                resolved = [i for i in resolved if i != "cancel_payment"]
+
+        # retry_payment needs explicit retry signal
+        if "retry_payment" in resolved:
+            retry_signals = ["retry", "resend", "redo", "re-initiate", "again", "re-attempt", "re-send"]
+            if not any(sig in query_lower for sig in retry_signals):
+                resolved = [i for i in resolved if i != "retry_payment"]
+
+        # acknowledge_payment: must have explicit acknowledge/confirm signal
+        if "acknowledge_payment" in resolved:
+            ack_signals = ["acknowledge", "ack", "confirm receipt", "mark received", "confirm payment received"]
+            if not any(sig in query_lower for sig in ack_signals):
+                resolved = [i for i in resolved if i != "acknowledge_payment"]
+
+        # get_payment_receipt: must have receipt/proof signal
+        if "get_payment_receipt" in resolved:
+            receipt_signals = ["receipt", "proof", "acknowledgement receipt", "download receipt"]
+            if not any(sig in query_lower for sig in receipt_signals):
+                resolved = [i for i in resolved if i != "get_payment_receipt"]
+
+        # validate_beneficiary should NOT fire alongside initiate_payment unless explicit
+        if "validate_beneficiary" in resolved and "initiate_payment" in resolved:
+            validate_signals = ["validate", "verify", "check account", "validate beneficiary"]
+            if not any(sig in query_lower for sig in validate_signals):
+                resolved = [i for i in resolved if i != "validate_beneficiary"]
+
+        # validate_payment_file needs explicit file/validate signal
+        if "validate_payment_file" in resolved:
+            file_signals = ["validate file", "check file", "verify file", "payment file", "bulk file"]
+            if not any(sig in query_lower for sig in file_signals):
+                resolved = [i for i in resolved if i != "validate_payment_file"]
+
+        # upload_bulk_payment vs initiate_payment: bulk needs explicit bulk signal
+        if "upload_bulk_payment" in resolved and "initiate_payment" in resolved:
+            bulk_signals = ["bulk", "batch", "multiple", "upload", "csv", "many vendors"]
+            if not any(sig in query_lower for sig in bulk_signals):
+                resolved = [i for i in resolved if i != "upload_bulk_payment"]
+            else:
+                resolved = [i for i in resolved if i != "initiate_payment"]
+
+        # ═══════════════════════════════════════════════════════════════
+        # GROUP 2: TRANSACTION CONFLICTS
+        # ═══════════════════════════════════════════════════════════════
+
+        # get_transaction_history is the primary — suppress noise when it fires
+        if "get_transaction_history" in resolved:
+            # suppress search_transactions unless explicitly searching
+            search_signals = ["search", "find", "look up", "filter", "lookup"]
+            if not any(sig in query_lower for sig in search_signals):
+                resolved = [i for i in resolved if i != "search_transactions"]
+            # suppress get_transaction_details unless txn id or explicit detail request
+            detail_signals = ["txn id", "transaction id", "ref no", "utr", "detail of", "info of"]
+            if not any(sig in query_lower for sig in detail_signals):
+                resolved = [i for i in resolved if i != "get_transaction_details"]
+            # suppress download_transaction_report unless explicitly downloading
+            dl_signals = ["download", "export", "report", "excel", "pdf"]
+            if not any(sig in query_lower for sig in dl_signals):
+                resolved = [i for i in resolved if i != "download_transaction_report"]
+
+        # search_transactions standalone: needs explicit search signal
+        if "search_transactions" in resolved and "get_transaction_history" not in resolved:
+            search_signals = ["search", "find", "look up", "filter", "lookup"]
+            if not any(sig in query_lower for sig in search_signals):
+                resolved = [i for i in resolved if i != "search_transactions"]
+
+        # get_transaction_details standalone: needs txn id or explicit detail signal
+        if "get_transaction_details" in resolved and "get_transaction_history" not in resolved:
+            detail_signals = ["txn id", "transaction id", "ref no", "utr",
+                              "detail of", "info of", "breakdown of", "specific transaction"]
+            if not any(sig in query_lower for sig in detail_signals):
+                resolved = [i for i in resolved if i != "get_transaction_details"]
+
+        # get_pending_transactions: needs explicit pending signal
+        if "get_pending_transactions" in resolved:
+            pending_signals = ["pending", "in progress", "processing", "queue", "outstanding", "in-process"]
+            if not any(sig in query_lower for sig in pending_signals):
+                resolved = [i for i in resolved if i != "get_pending_transactions"]
+
+        # download_transaction_report vs fetch_bank_statement: need explicit signals
+        if "download_transaction_report" in resolved and "fetch_bank_statement" in resolved:
+            txn_report_signals = ["transaction report", "txn report", "payment report"]
+            statement_signals  = ["bank statement", "account statement", "statement"]
+            has_txn    = any(sig in query_lower for sig in txn_report_signals)
+            has_stmt   = any(sig in query_lower for sig in statement_signals)
+            if has_stmt and not has_txn:
+                resolved = [i for i in resolved if i != "download_transaction_report"]
+            elif has_txn and not has_stmt:
+                resolved = [i for i in resolved if i != "fetch_bank_statement"]
+
+        # fetch_bank_statement vs download_bank_statement: view vs download
+        if "fetch_bank_statement" in resolved and "download_bank_statement" in resolved:
+            dl_signals = ["download", "export", "pdf", "excel", "save"]
+            if any(sig in query_lower for sig in dl_signals):
+                resolved = [i for i in resolved if i != "fetch_bank_statement"]
+            else:
+                resolved = [i for i in resolved if i != "download_bank_statement"]
+
+        # ═══════════════════════════════════════════════════════════════
+        # GROUP 3: ACCOUNT CONFLICTS
+        # ═══════════════════════════════════════════════════════════════
+
+        # get_account_summary fires → suppress get_account_balance unless balance is explicit
         if "get_account_summary" in resolved and "get_account_balance" in resolved:
-            balance_signals = ["balance", "available", "current balance"]
-            if not any(sig in query_lower for sig in balance_signals):
+            if "balance" not in query_lower and "available" not in query_lower:
                 resolved = [i for i in resolved if i != "get_account_balance"]
 
-        # Suppress fetch_gst_dues when pay_gst is explicitly requested
+        # get_account_balance fires → suppress get_account_details unless details explicit
+        if "get_account_balance" in resolved and "get_account_details" in resolved:
+            detail_signals = ["details", "ifsc", "account number", "branch", "account info"]
+            if not any(sig in query_lower for sig in detail_signals):
+                resolved = [i for i in resolved if i != "get_account_details"]
+
+        # get_linked_accounts: needs explicit "linked" or "connected" signal
+        if "get_linked_accounts" in resolved:
+            linked_signals = ["linked", "connected", "all accounts", "multiple accounts", "how many accounts"]
+            if not any(sig in query_lower for sig in linked_signals):
+                resolved = [i for i in resolved if i != "get_linked_accounts"]
+
+        # set_default_account: needs explicit set/change/default signal
+        if "set_default_account" in resolved:
+            set_signals = ["set default", "change default", "make default", "primary account", "set primary"]
+            if not any(sig in query_lower for sig in set_signals):
+                resolved = [i for i in resolved if i != "set_default_account"]
+
+        # get_authorized_signatories: needs explicit signatory signal
+        if "get_authorized_signatories" in resolved:
+            sig_signals = ["signator", "who can sign", "signing authority", "authorized person"]
+            if not any(sig in query_lower for sig in sig_signals):
+                resolved = [i for i in resolved if i != "get_authorized_signatories"]
+
+        # ═══════════════════════════════════════════════════════════════
+        # GROUP 4: COMPLIANCE PAYMENT CONFLICTS
+        # ═══════════════════════════════════════════════════════════════
+
+        # Pay vs Fetch dues — if only paying, suppress fetch unless dues explicitly mentioned
         if "pay_gst" in resolved and "fetch_gst_dues" in resolved:
-            if "dues" not in query_lower and "pending" not in query_lower:
+            if "dues" not in query_lower and "pending" not in query_lower and "how much" not in query_lower:
                 resolved = [i for i in resolved if i != "fetch_gst_dues"]
 
-        # Suppress fetch_epf_dues when pay_epf is explicitly requested
         if "pay_epf" in resolved and "fetch_epf_dues" in resolved:
-            if "dues" not in query_lower and "pending" not in query_lower:
+            if "dues" not in query_lower and "pending" not in query_lower and "how much" not in query_lower:
                 resolved = [i for i in resolved if i != "fetch_epf_dues"]
 
-        # Suppress fetch_esic_dues when pay_esic is explicitly requested
         if "pay_esic" in resolved and "fetch_esic_dues" in resolved:
-            if "dues" not in query_lower and "pending" not in query_lower:
+            if "dues" not in query_lower and "pending" not in query_lower and "how much" not in query_lower:
                 resolved = [i for i in resolved if i != "fetch_esic_dues"]
 
-        # Suppress calculate_gst when query is purely a breakdown request
+        if "pay_direct_tax" in resolved and "fetch_tax_dues" in resolved:
+            if "dues" not in query_lower and "pending" not in query_lower and "how much" not in query_lower:
+                resolved = [i for i in resolved if i != "fetch_tax_dues"]
+
+        if "pay_insurance_premium" in resolved and "fetch_insurance_dues" in resolved:
+            if "dues" not in query_lower and "pending" not in query_lower and "how much" not in query_lower:
+                resolved = [i for i in resolved if i != "fetch_insurance_dues"]
+
+        # Pay vs History — paying should not trigger history unless explicit
+        if "pay_gst" in resolved and "get_gst_payment_history" in resolved:
+            hist_signals = ["history", "past", "previous", "records", "last month"]
+            if not any(sig in query_lower for sig in hist_signals):
+                resolved = [i for i in resolved if i != "get_gst_payment_history"]
+
+        if "pay_epf" in resolved and "get_epf_payment_history" in resolved:
+            hist_signals = ["history", "past", "previous", "records", "last month"]
+            if not any(sig in query_lower for sig in hist_signals):
+                resolved = [i for i in resolved if i != "get_epf_payment_history"]
+
+        if "pay_esic" in resolved and "get_esic_payment_history" in resolved:
+            hist_signals = ["history", "past", "previous", "records", "last month"]
+            if not any(sig in query_lower for sig in hist_signals):
+                resolved = [i for i in resolved if i != "get_esic_payment_history"]
+
+        if "pay_direct_tax" in resolved and "get_tax_payment_history" in resolved:
+            hist_signals = ["history", "past", "previous", "records", "last month"]
+            if not any(sig in query_lower for sig in hist_signals):
+                resolved = [i for i in resolved if i != "get_tax_payment_history"]
+
+        if "pay_insurance_premium" in resolved and "get_insurance_payment_history" in resolved:
+            hist_signals = ["history", "past", "previous", "records", "last month"]
+            if not any(sig in query_lower for sig in hist_signals):
+                resolved = [i for i in resolved if i != "get_insurance_payment_history"]
+
+        if "process_payroll" in resolved and "get_payroll_history" in resolved:
+            hist_signals = ["history", "past", "previous", "records", "last month"]
+            if not any(sig in query_lower for sig in hist_signals):
+                resolved = [i for i in resolved if i != "get_payroll_history"]
+
+        # pay_custom_duty vs track_custom_duty_payment: pay vs track
+        if "pay_custom_duty" in resolved and "track_custom_duty_payment" in resolved:
+            track_signals = ["track", "status", "check", "where is"]
+            if not any(sig in query_lower for sig in track_signals):
+                resolved = [i for i in resolved if i != "track_custom_duty_payment"]
+
+        # pay_gst vs create_gst_challan: challan is creation, pay is action
+        if "pay_gst" in resolved and "create_gst_challan" in resolved:
+            challan_signals = ["challan", "create challan", "generate challan"]
+            if not any(sig in query_lower for sig in challan_signals):
+                resolved = [i for i in resolved if i != "create_gst_challan"]
+
+        # pay_bulk_tax vs pay_direct_tax: bulk needs explicit bulk signal
+        if "pay_bulk_tax" in resolved and "pay_direct_tax" in resolved:
+            bulk_signals = ["bulk", "multiple", "batch", "all tax", "all tds"]
+            if any(sig in query_lower for sig in bulk_signals):
+                resolved = [i for i in resolved if i != "pay_direct_tax"]
+            else:
+                resolved = [i for i in resolved if i != "pay_bulk_tax"]
+
+        # process_payroll vs fetch_payroll_summary: processing vs viewing
+        if "process_payroll" in resolved and "fetch_payroll_summary" in resolved:
+            process_signals = ["process", "run", "disburse", "execute", "pay salary", "pay employee"]
+            summary_signals = ["summary", "view", "show", "check", "how much", "total"]
+            has_process = any(sig in query_lower for sig in process_signals)
+            has_summary = any(sig in query_lower for sig in summary_signals)
+            if has_process and not has_summary:
+                resolved = [i for i in resolved if i != "fetch_payroll_summary"]
+            elif has_summary and not has_process:
+                resolved = [i for i in resolved if i != "process_payroll"]
+
+        # ═══════════════════════════════════════════════════════════════
+        # GROUP 5: DUES CONFLICTS
+        # ═══════════════════════════════════════════════════════════════
+
+        # get_upcoming_dues fires → suppress specific fetch_*_dues unless those are explicit
+        if "get_upcoming_dues" in resolved:
+            # Only suppress specific dues if user is asking for all dues, not a specific one
+            specific_gst  = ["gst dues", "gst payable", "gst pending"]
+            specific_epf  = ["epf dues", "pf dues", "epf payable"]
+            specific_esic = ["esic dues", "esi dues", "esic payable"]
+            specific_tax  = ["tax dues", "tds dues", "tax payable"]
+            specific_ins  = ["insurance dues", "premium due", "policy due"]
+            if not any(sig in query_lower for sig in specific_gst):
+                resolved = [i for i in resolved if i != "fetch_gst_dues"]
+            if not any(sig in query_lower for sig in specific_epf):
+                resolved = [i for i in resolved if i != "fetch_epf_dues"]
+            if not any(sig in query_lower for sig in specific_esic):
+                resolved = [i for i in resolved if i != "fetch_esic_dues"]
+            if not any(sig in query_lower for sig in specific_tax):
+                resolved = [i for i in resolved if i != "fetch_tax_dues"]
+            if not any(sig in query_lower for sig in specific_ins):
+                resolved = [i for i in resolved if i != "fetch_insurance_dues"]
+
+        # get_overdue_payments vs get_upcoming_dues: overdue vs upcoming
+        if "get_overdue_payments" in resolved and "get_upcoming_dues" in resolved:
+            overdue_signals = ["overdue", "missed", "late", "past due", "already due"]
+            upcoming_signals = ["upcoming", "next", "coming", "future", "this month"]
+            has_overdue  = any(sig in query_lower for sig in overdue_signals)
+            has_upcoming = any(sig in query_lower for sig in upcoming_signals)
+            if has_overdue and not has_upcoming:
+                resolved = [i for i in resolved if i != "get_upcoming_dues"]
+            elif has_upcoming and not has_overdue:
+                resolved = [i for i in resolved if i != "get_overdue_payments"]
+
+        # set_payment_reminder vs get_reminder_list: setting vs viewing
+        if "set_payment_reminder" in resolved and "get_reminder_list" in resolved:
+            set_signals  = ["set", "add", "create", "remind me", "schedule"]
+            list_signals = ["show", "list", "view", "all reminders", "my reminders"]
+            has_set  = any(sig in query_lower for sig in set_signals)
+            has_list = any(sig in query_lower for sig in list_signals)
+            if has_set and not has_list:
+                resolved = [i for i in resolved if i != "get_reminder_list"]
+            elif has_list and not has_set:
+                resolved = [i for i in resolved if i != "set_payment_reminder"]
+
+        # delete_reminder vs get_reminder_list: deleting vs viewing
+        if "delete_reminder" in resolved and "get_reminder_list" in resolved:
+            del_signals = ["delete", "remove", "cancel reminder", "clear reminder"]
+            if any(sig in query_lower for sig in del_signals):
+                resolved = [i for i in resolved if i != "get_reminder_list"]
+
+        # ═══════════════════════════════════════════════════════════════
+        # GROUP 6: DASHBOARD / ANALYTICS CONFLICTS
+        # ═══════════════════════════════════════════════════════════════
+
+        # get_dashboard_summary fires → suppress overlapping analytics unless explicit
+        if "get_dashboard_summary" in resolved:
+            cashflow_signals  = ["cashflow", "cash flow", "inflow", "outflow"]
+            spending_signals  = ["spending", "expense", "where am i spending"]
+            vendor_signals    = ["vendor payment", "vendor wise", "top vendor"]
+            monthly_signals   = ["monthly report", "month report", "report for"]
+            if not any(sig in query_lower for sig in cashflow_signals):
+                resolved = [i for i in resolved if i != "get_cashflow_summary"]
+            if not any(sig in query_lower for sig in spending_signals):
+                resolved = [i for i in resolved if i != "get_spending_analytics"]
+            if not any(sig in query_lower for sig in vendor_signals):
+                resolved = [i for i in resolved if i != "get_vendor_payment_summary"]
+            if not any(sig in query_lower for sig in monthly_signals):
+                resolved = [i for i in resolved if i != "get_monthly_report"]
+
+        # get_monthly_report should only fire with explicit monthly/report signal
+        if "get_monthly_report" in resolved:
+            monthly_signals = ["monthly", "month report", "month end", "report for", "monthly summary"]
+            if not any(sig in query_lower for sig in monthly_signals):
+                resolved = [i for i in resolved if i != "get_monthly_report"]
+
+        # ═══════════════════════════════════════════════════════════════
+        # GROUP 7: COMPANY CONFLICTS
+        # ═══════════════════════════════════════════════════════════════
+
+        # get_company_profile vs update_company_details: viewing vs editing
+        if "get_company_profile" in resolved and "update_company_details" in resolved:
+            update_signals = ["update", "change", "edit", "modify", "new address", "new email"]
+            view_signals   = ["show", "view", "profile", "details", "info"]
+            has_update = any(sig in query_lower for sig in update_signals)
+            has_view   = any(sig in query_lower for sig in view_signals)
+            if has_update and not has_view:
+                resolved = [i for i in resolved if i != "get_company_profile"]
+            elif has_view and not has_update:
+                resolved = [i for i in resolved if i != "update_company_details"]
+
+        # update_company_details: must have explicit update/change/edit signal
+        if "update_company_details" in resolved:
+            update_signals = ["update", "change", "edit", "modify", "correct", "new ", "revise"]
+            if not any(sig in query_lower for sig in update_signals):
+                resolved = [i for i in resolved if i != "update_company_details"]
+
+        # get_gst_profile vs validate_gstin: profile vs validation
+        if "get_gst_profile" in resolved and "validate_gstin" in resolved:
+            validate_signals = ["validate", "verify", "check gstin", "is valid", "gstin valid"]
+            if not any(sig in query_lower for sig in validate_signals):
+                resolved = [i for i in resolved if i != "validate_gstin"]
+
+        # get_gst_profile vs calculate_gst: profile vs calculation
+        if "get_gst_profile" in resolved and "calculate_gst" in resolved:
+            calc_signals = ["calculate", "compute", "how much gst", "gst on", "add gst"]
+            if not any(sig in query_lower for sig in calc_signals):
+                resolved = [i for i in resolved if i != "calculate_gst"]
+
+        # manage_user_roles: must have explicit role/permission signal
+        if "manage_user_roles" in resolved:
+            role_signals = ["role", "permission", "access", "maker", "checker", "assign", "user management"]
+            if not any(sig in query_lower for sig in role_signals):
+                resolved = [i for i in resolved if i != "manage_user_roles"]
+
+        # ═══════════════════════════════════════════════════════════════
+        # GROUP 8: B2B CONFLICTS
+        # ═══════════════════════════════════════════════════════════════
+
+        # send_invoice vs get_received_invoices: sending vs viewing received
+        if "send_invoice" in resolved and "get_received_invoices" in resolved:
+            send_signals     = ["send", "create", "raise", "generate invoice", "issue"]
+            received_signals = ["received", "incoming", "bills from", "vendor invoice"]
+            has_send     = any(sig in query_lower for sig in send_signals)
+            has_received = any(sig in query_lower for sig in received_signals)
+            if has_send and not has_received:
+                resolved = [i for i in resolved if i != "get_received_invoices"]
+            elif has_received and not has_send:
+                resolved = [i for i in resolved if i != "send_invoice"]
+
+        # create_purchase_order vs send_invoice: PO vs invoice
+        if "create_purchase_order" in resolved and "send_invoice" in resolved:
+            po_signals      = ["purchase order", "po", "order for vendor", "buy"]
+            invoice_signals = ["invoice", "bill to client", "raise bill"]
+            has_po      = any(sig in query_lower for sig in po_signals)
+            has_invoice = any(sig in query_lower for sig in invoice_signals)
+            if has_po and not has_invoice:
+                resolved = [i for i in resolved if i != "send_invoice"]
+            elif has_invoice and not has_po:
+                resolved = [i for i in resolved if i != "create_purchase_order"]
+
+        # create_cd_note: must have explicit credit/debit note signal
+        if "create_cd_note" in resolved:
+            cdn_signals = ["credit note", "debit note", "cd note", "adjustment note", "cn", "dn"]
+            if not any(sig in query_lower for sig in cdn_signals):
+                resolved = [i for i in resolved if i != "create_cd_note"]
+
+        # create_proforma_invoice vs send_invoice: proforma vs regular
+        if "create_proforma_invoice" in resolved and "send_invoice" in resolved:
+            proforma_signals = ["proforma", "pro forma", "advance invoice", "pre-sale", "estimate"]
+            if not any(sig in query_lower for sig in proforma_signals):
+                resolved = [i for i in resolved if i != "create_proforma_invoice"]
+
+        # onboard_business_partner vs vendor_guide: action vs guide
+        if "onboard_business_partner" in resolved and "vendor_guide" in resolved:
+            onboard_signals = ["onboard", "add", "register", "new partner", "new vendor"]
+            guide_signals   = ["guide", "how to", "process", "steps", "what is"]
+            has_onboard = any(sig in query_lower for sig in onboard_signals)
+            has_guide   = any(sig in query_lower for sig in guide_signals)
+            if has_onboard and not has_guide:
+                resolved = [i for i in resolved if i != "vendor_guide"]
+            elif has_guide and not has_onboard:
+                resolved = [i for i in resolved if i != "onboard_business_partner"]
+
+        # ═══════════════════════════════════════════════════════════════
+        # GROUP 9: GST CALCULATOR CONFLICTS
+        # ═══════════════════════════════════════════════════════════════
+
+        # compare_rates: must have explicit compare signal
+        if "compare_rates" in resolved:
+            compare_signals = ["compare", "comparison", "vs", "versus",
+                               "rate table", "which rate", "different rates",
+                               "all rates", "rate comparison", "compare rates", "compare gst"]
+            if not any(sig in query_lower for sig in compare_signals):
+                resolved = [i for i in resolved if i != "compare_rates"]
+
+        # When compare_rates + calculate_gst both fire: keep both only if calc is explicit
+        if "compare_rates" in resolved and "calculate_gst" in resolved:
+            calc_signals = ["calculate gst", "compute gst", "find gst", "add gst",
+                            "how much gst", "and calculate", "also calculate", "gst on"]
+            if not any(sig in query_lower for sig in calc_signals):
+                resolved = [i for i in resolved if i != "calculate_gst"]
+
+        # gst_breakdown + calculate_gst: suppress calculate if only breakdown requested
         if "gst_breakdown" in resolved and "calculate_gst" in resolved:
             calc_signals = ["calculate gst", "compute gst", "find gst", "add gst",
                             "how much gst", "and calculate", "also calculate"]
             if not any(sig in query_lower for sig in calc_signals):
                 resolved = [i for i in resolved if i != "calculate_gst"]
 
-        # Suppress compare_rates firing calculate_gst for every rate
-        # Keep `calculate_gst` when user explicitly asked to calculate (e.g. "calculate gst"),
-        # otherwise remove it to avoid redundant per-rate calculations.
-        if "compare_rates" in resolved and "calculate_gst" in resolved:
-            calc_signals = [
-                "calculate gst", "calculate", "compute gst", "find gst", "add gst",
-                "how much gst", "and calculate", "also calculate", "calculate on", "gst on"
-            ]
+        # reverse_gst vs calculate_gst: reverse vs forward
+        if "reverse_gst" in resolved and "calculate_gst" in resolved:
+            reverse_signals = ["reverse", "remove gst", "exclude gst", "without gst",
+                               "before gst", "base price from", "inclusive"]
+            calc_signals    = ["calculate gst", "add gst", "gst on", "compute gst"]
+            has_reverse = any(sig in query_lower for sig in reverse_signals)
+            has_calc    = any(sig in query_lower for sig in calc_signals)
+            if has_reverse and not has_calc:
+                resolved = [i for i in resolved if i != "calculate_gst"]
+            elif has_calc and not has_reverse:
+                resolved = [i for i in resolved if i != "reverse_gst"]
+
+        # validate_gstin: must have explicit GSTIN or validate signal
+        if "validate_gstin" in resolved:
+            gstin_signals = ["validate gstin", "verify gstin", "check gstin",
+                             "gstin valid", "gstin check", "is gstin"]
+            # also allow if a GSTIN pattern is present in original query
+            gstin_pattern = r"[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[A-Z0-9]{1}Z[A-Z0-9]{1}"
+            import re as _re
+            has_gstin_pattern = bool(_re.search(gstin_pattern, query_lower.upper()))
+            if not any(sig in query_lower for sig in gstin_signals) and not has_gstin_pattern:
+                resolved = [i for i in resolved if i != "validate_gstin"]
+
+        # pay_gst vs calculate_gst: paying GST ≠ calculating it
+        if "pay_gst" in resolved and "calculate_gst" in resolved:
+            calc_signals = ["calculate", "compute", "how much gst", "gst on", "add gst", "find gst"]
             if not any(sig in query_lower for sig in calc_signals):
                 resolved = [i for i in resolved if i != "calculate_gst"]
 
-        # Suppress company sub-intents when only company_guide is needed
+        # ═══════════════════════════════════════════════════════════════
+        # GROUP 10: ONBOARDING / GUIDE CONFLICTS
+        # ═══════════════════════════════════════════════════════════════
+
+        # company_guide sub-intents: only fire when explicitly asked
         if "company_guide" in resolved:
-            doc_signals     = ["document", "checklist", "what documents", "required documents"]
-            process_signals = ["how long", "timeline", "processing time", "approval", "how many days"]
+            doc_signals     = ["document", "checklist", "what documents", "required documents", "papers"]
+            process_signals = ["how long", "timeline", "processing time", "approval", "how many days", "days to"]
+            field_signals   = ["pan format", "din", "cin", "field", "what is cin", "what is din"]
             if not any(sig in query_lower for sig in doc_signals):
                 resolved = [i for i in resolved if i != "company_documents"]
             if not any(sig in query_lower for sig in process_signals):
                 resolved = [i for i in resolved if i != "company_process"]
+            if not any(sig in query_lower for sig in field_signals):
+                resolved = [i for i in resolved if i != "company_field"]
+
+        # bank_guide vs vendor_guide: bank vs vendor context
+        if "bank_guide" in resolved and "vendor_guide" in resolved:
+            bank_signals   = ["bank account", "bank onboarding", "add bank", "open account"]
+            vendor_signals = ["vendor", "supplier", "partner onboard"]
+            has_bank   = any(sig in query_lower for sig in bank_signals)
+            has_vendor = any(sig in query_lower for sig in vendor_signals)
+            if has_bank and not has_vendor:
+                resolved = [i for i in resolved if i != "vendor_guide"]
+            elif has_vendor and not has_bank:
+                resolved = [i for i in resolved if i != "bank_guide"]
+
+        # onboard_business_partner vs bank_guide: action vs guide
+        if "onboard_business_partner" in resolved and "bank_guide" in resolved:
+            guide_signals = ["guide", "how to", "process", "steps", "what is", "explain"]
+            if not any(sig in query_lower for sig in guide_signals):
+                resolved = [i for i in resolved if i != "bank_guide"]
+
+        # ═══════════════════════════════════════════════════════════════
+        # GROUP 11: SUPPORT CONFLICTS
+        # ═══════════════════════════════════════════════════════════════
+
+        # raise_support_ticket vs get_ticket_history: creating vs viewing
+        if "raise_support_ticket" in resolved and "get_ticket_history" in resolved:
+            raise_signals = ["raise", "create", "open", "new ticket", "report issue", "file complaint"]
+            hist_signals  = ["history", "past", "my tickets", "all tickets", "previous"]
+            has_raise = any(sig in query_lower for sig in raise_signals)
+            has_hist  = any(sig in query_lower for sig in hist_signals)
+            if has_raise and not has_hist:
+                resolved = [i for i in resolved if i != "get_ticket_history"]
+            elif has_hist and not has_raise:
+                resolved = [i for i in resolved if i != "raise_support_ticket"]
+
+        # chat_with_support vs raise_support_ticket: chat vs ticket
+        if "chat_with_support" in resolved and "raise_support_ticket" in resolved:
+            chat_signals   = ["chat", "talk to", "speak with", "live support", "agent"]
+            ticket_signals = ["ticket", "complaint", "report issue", "log issue"]
+            has_chat   = any(sig in query_lower for sig in chat_signals)
+            has_ticket = any(sig in query_lower for sig in ticket_signals)
+            if has_chat and not has_ticket:
+                resolved = [i for i in resolved if i != "raise_support_ticket"]
+            elif has_ticket and not has_chat:
+                resolved = [i for i in resolved if i != "chat_with_support"]
+
+        # get_contact_details: must have explicit contact/helpline signal
+        if "get_contact_details" in resolved:
+            contact_signals = ["contact", "helpline", "phone number", "customer care", "reach", "call"]
+            if not any(sig in query_lower for sig in contact_signals):
+                resolved = [i for i in resolved if i != "get_contact_details"]
 
         return resolved
 
@@ -1278,6 +1804,17 @@ class ProductionIntentClassifier:
                 entities["base_amount"]  = amounts[0]
             if len(amounts) > 1:
                 entities["total_amount"] = amounts[1]
+
+        # Transaction / record limit — e.g. "show 10 transactions", "last 25 records"
+        limit_match = re.search(
+            r"\b(?:show|last|recent|top|first|get|fetch)?\s*(\d{1,3})\s*(?:transactions?|txns?|records?|entries|payments?)\b",
+            query, re.IGNORECASE
+        )
+        if not limit_match:
+            # plain "show 10" — number directly before/after keyword
+            limit_match = re.search(r"\b(\d{1,3})\s+transactions?\b", query, re.IGNORECASE)
+        if limit_match:
+            entities["limit"] = int(limit_match.group(1))
 
         # Account number (long digit string not already matched)
         acct_match = re.search(r"\b(\d{9,18})\b", cleaned_query)
@@ -1460,6 +1997,7 @@ class ProductionIntentClassifier:
                 "account_number": account_number,
                 "from_date":      from_date,
                 "to_date":        to_date,
+                "limit":          entities.get("limit", 10),
             }})
 
         # ── CUSTOM / SEZ ──────────────────────────────────────────────
@@ -1595,11 +2133,19 @@ class ProductionIntentClassifier:
             tool_calls.append({"tool_name": "set_default_account", "parameters": {"account_number": account_number}})
 
         # ── TRANSACTION & HISTORY ─────────────────────────────────────
+        # search_transactions: only fire when user explicitly searches (not just "show transactions")
         if "search_transactions" in detected_intents:
-            tool_calls.append({"tool_name": "search_transactions", "parameters": {
-                "from_date": from_date, "to_date": to_date,
-            }})
+            search_keywords = ["search", "find", "look up", "filter", "lookup"]
+            query_l = user_message.lower()
+            if any(kw in query_l for kw in search_keywords):
+                params = {"from_date": from_date, "to_date": to_date}
+                if amount:
+                    params["amount"] = amount
+                if account_number:
+                    params["beneficiary_id"] = account_number
+                tool_calls.append({"tool_name": "search_transactions", "parameters": params})
 
+        # get_transaction_details: only fire when a specific transaction_id is present
         if "get_transaction_details" in detected_intents and transaction_id:
             tool_calls.append({"tool_name": "get_transaction_details", "parameters": {"transaction_id": transaction_id}})
 
@@ -1694,15 +2240,18 @@ class ProductionIntentClassifier:
 
         # ── GST CALCULATOR (→ gst_client_manager) ─────────────────────
         if "calculate_gst" in detected_intents and amount:
-            # If compare_rates is also requested, only calculate for the primary rate
-            # and let `compare_rates` handle multi-rate comparisons to avoid duplicate
-            # per-rate calculate calls.
-            rates_for_calc = gst_rates if "compare_rates" not in detected_intents else [gst_rates[0]]
-            for rate in rates_for_calc:
+            # When compare_rates also detected, emit exactly 1 calculate call (primary rate only)
+            if "compare_rates" in detected_intents:
                 tool_calls.append({"tool_name": "calculate_gst", "parameters": {
                     "base_amount": amount,
-                    "gst_rate":    rate,
+                    "gst_rate":    gst_rates[0],
                 }})
+            else:
+                for rate in gst_rates:
+                    tool_calls.append({"tool_name": "calculate_gst", "parameters": {
+                        "base_amount": amount,
+                        "gst_rate":    rate,
+                    }})
 
         if "reverse_gst" in detected_intents:
             amt = entities.get("total_amount") or amount

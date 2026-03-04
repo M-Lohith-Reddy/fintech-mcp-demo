@@ -1,40 +1,42 @@
+
 """
-FastAPI Application - FINAL VERSION
-GST Calculator + Onboarding Info with Local ML + 2 MCP Servers
+FastAPI Application — Bank AI Assistant
+Payments, B2B, GST, EPF, ESIC, Payroll, Taxes,
+Insurance, Custom/SEZ, Bank Statement,
+Account Management, Transactions, Dues, Dashboard & Support.
+
+Uses Local ML (no external LLM) + single Bank MCP Server (data_server.py).
 """
 from dotenv import load_dotenv
 load_dotenv()
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse                        # ADD: Option C redirects
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Dict, Any, Optional
 import logging
-import urllib.parse                                                    # ADD: URL encoding
+import importlib.util
 from contextlib import asynccontextmanager
-from datetime import datetime, date as dt_date                        # ADD: date formatting
 
 from config.config import settings
 from client.llm_service import claude_service
-from client.mcp_client import gst_client_manager, info_client_manager, redbus_client_manager
+from client.mcp_client import bank_client_manager, gst_client_manager, info_client_manager
 
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper()),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
 # Optional query logger
-import importlib.util
 _qlog_spec = importlib.util.find_spec("query_logger")
 if _qlog_spec is not None:
     from query_logger import metrics_router, query_logger
     _query_logging = True
 else:
-    metrics_router  = None
-    query_logger    = None
-    _query_logging  = False
+    metrics_router = None
+    query_logger   = None
+    _query_logging = False
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -43,43 +45,43 @@ else:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("=" * 60)
-    logger.info("Starting Fintech AI Assistant - FINAL")
-    logger.info(f"LLM Provider: {settings.llm_provider}")
+    logger.info("Starting Bank AI Assistant")
+    logger.info(f"LLM Provider : {settings.llm_provider}")
     logger.info("=" * 60)
 
     try:
-        gst_client = await gst_client_manager.get_client()
-        logger.info(f"✓ GST Server: {len(gst_client.available_tools)} tools")
+        bank_client = await bank_client_manager.get_client()
+        logger.info(f"✓ Bank MCP Server  : {len(bank_client.available_tools)} tools")
     except Exception as e:
-        logger.error(f"✗ GST Server failed: {e}")
+        logger.error(f"✗ Bank MCP Server failed: {e}")
+
+    try:
+        gst_client = await gst_client_manager.get_client()
+        logger.info(f"✓ GST Calculator   : {len(gst_client.available_tools)} tools")
+    except Exception as e:
+        logger.error(f"✗ GST Calculator failed: {e}")
 
     try:
         info_client = await info_client_manager.get_client()
-        logger.info(f"✓ Info Server: {len(info_client.available_tools)} tools")
+        logger.info(f"✓ Onboarding Info  : {len(info_client.available_tools)} tools")
     except Exception as e:
-        logger.error(f"✗ Info Server failed: {e}")
-
-    try:
-        redbus_client = await redbus_client_manager.get_client()
-        logger.info(f"✓ RedBus Server: {len(redbus_client.available_tools)} tools")
-    except Exception as e:
-        logger.error(f"✗ RedBus Server failed: {e}")
+        logger.error(f"✗ Onboarding Info failed: {e}")
 
     if _query_logging:
         logger.info("✓ Query logging enabled → logs/queries.jsonl")
     else:
-        logger.info("ℹ  Query logging disabled (add query_logger.py to enable)")
+        logger.info("ℹ  Query logging disabled")
 
     logger.info("=" * 60)
-    logger.info("All servers ready!")
+    logger.info("Bank AI Assistant ready!")
     logger.info("=" * 60)
 
     yield
 
     logger.info("Shutting down...")
+    await bank_client_manager.close()
     await gst_client_manager.close()
     await info_client_manager.close()
-    await redbus_client_manager.close()
     logger.info("Goodbye!")
 
 
@@ -87,9 +89,13 @@ async def lifespan(app: FastAPI):
 # APP
 # ═══════════════════════════════════════════════════════════════════════
 app = FastAPI(
-    title="Fintech AI Assistant",
-    description="GST Calculator + Onboarding Information + RedBus Redirect with Local ML + MCP",
-    version="2.0.0",
+    title="Bank AI Assistant",
+    description=(
+        "AI-powered banking assistant covering Payments, B2B, GST, EPF, ESIC, "
+        "Payroll, Taxes, Insurance, Custom/SEZ, Bank Statement, "
+        "Account Management, Transactions, Dues & Support."
+    ),
+    version="3.0.0",
     lifespan=lifespan
 )
 
@@ -113,15 +119,19 @@ class ChatRequest(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "examples": [
-                {"message": "Calculate GST on 10000 at 18%"},
-                {"message": "How to register my company on Vanghee B2B?"},
-                {"message": "What are the bank onboarding steps?"},
-                {"message": "Book a bus from Bangalore to Mumbai tomorrow"},
-                {"message": "Show me RedBus offers from Bangalore"}
+                {"message": "Initiate NEFT payment of 50000 to BENE001"},
+                {"message": "What is my account balance?"},
+                {"message": "Pay GST for GSTIN 27ABCDE1234F1Z5"},
+                {"message": "Process payroll for February 2026"},
+                {"message": "Show upcoming dues for next 30 days"},
+                {"message": "Upload bulk payment file"},
+                {"message": "Send invoice to partner PART001 for 1,00,000"},
+                {"message": "Pay EPF and ESIC dues for 02-2026"},
+                {"message": "Get dashboard summary and spending analytics"},
             ]
         }
     )
-    message: str = Field(..., description="User's natural language query")
+    message: str = Field(..., description="User's natural language banking query")
     conversation_history: Optional[List[Dict[str, str]]] = Field(default=None)
 
 
@@ -141,14 +151,27 @@ class ChatResponse(BaseModel):
 @app.get("/")
 async def root():
     return {
-        "message":      "Fintech AI Assistant",
-        "version":      "2.0.0",
+        "message":      "Bank AI Assistant",
+        "version":      "3.0.0",
         "llm_provider": settings.llm_provider,
         "model":        "local_ml",
-        "features":     ["GST Calculations", "Onboarding Information", "RedBus Redirect"],
-        "platform":     "Vanghee B2B",
-        "docs":         "/docs",
-        "health":       "/health"
+        "features": [
+            "Core Payments", "Bulk Upload Payments",
+            "B2B (Invoice, PO, CD Note, Proforma)",
+            "Insurance", "Bank Statement",
+            "Custom Duty / SEZ",
+            "GST (Fetch, Pay, Challan)",
+            "ESIC", "EPF", "Payroll",
+            "Taxes (Direct, State, Bulk)",
+            "Account Management",
+            "Transaction History & Search",
+            "Dues & Reminders",
+            "Dashboard & Analytics",
+            "Company Management",
+            "Support & Communication",
+        ],
+        "docs":   "/docs",
+        "health": "/health",
     }
 
 
@@ -158,50 +181,68 @@ async def health():
     total_tools   = 0
 
     try:
+        bank_client = await bank_client_manager.get_client()
+        server_status["bank"] = {
+            "connected": True,
+            "tools": len(bank_client.available_tools),
+        }
+        total_tools += len(bank_client.available_tools)
+    except Exception as e:
+        server_status["bank"] = {"connected": False, "error": str(e)}
+
+    try:
         gst_client = await gst_client_manager.get_client()
-        server_status["gst"] = {"connected": True, "tools": len(gst_client.available_tools)}
+        server_status["gst"] = {
+            "connected": True,
+            "tools": len(gst_client.available_tools),
+        }
         total_tools += len(gst_client.available_tools)
     except Exception as e:
         server_status["gst"] = {"connected": False, "error": str(e)}
 
     try:
         info_client = await info_client_manager.get_client()
-        server_status["info"] = {"connected": True, "tools": len(info_client.available_tools)}
+        server_status["info"] = {
+            "connected": True,
+            "tools": len(info_client.available_tools),
+        }
         total_tools += len(info_client.available_tools)
     except Exception as e:
         server_status["info"] = {"connected": False, "error": str(e)}
-
-    try:
-        redbus_client = await redbus_client_manager.get_client()
-        server_status["redbus"] = {"connected": True, "tools": len(redbus_client.available_tools)}
-        total_tools += len(redbus_client.available_tools)
-    except Exception as e:
-        server_status["redbus"] = {"connected": False, "error": str(e)}
 
     return {
         "status":        "healthy",
         "llm_provider":  settings.llm_provider,
         "total_tools":   total_tools,
         "query_logging": _query_logging,
-        "servers":       server_status
+        "servers":       server_status,
     }
 
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     """
-    Main chat endpoint — handles GST calculations, onboarding information and RedBus redirects.
+    Main chat endpoint — handles all banking queries.
 
-    Supported queries:
-    - GST       : "Calculate GST on 10000 at 18%"
-    - Onboarding: "How to register my company?"
-    - Bank      : "Bank onboarding steps"
-    - Vendor    : "How to register vendor?"
-    - RedBus    : "Book bus from Bangalore to Mumbai tomorrow"
-    - RedBus    : "Show RedBus offers from Chennai"
-    - RedBus    : "Track my bus TIN123456789"
-    - Multi     : "Calculate GST and book bus from Bangalore to Pune"
-    - Multi     : "Calculate GST and show company onboarding guide"
+    Supported query categories:
+    - Payments     : "Initiate NEFT payment of 50000 to vendor"
+    - Bulk Payment : "Upload bulk payment file"
+    - B2B          : "Send invoice to partner for 1 lakh"
+    - Insurance    : "Show insurance premium dues"
+    - Bank Stmt    : "Get statement for Jan 2026"
+    - Custom/SEZ   : "Pay custom duty for BOE12345"
+    - GST          : "Pay GST for GSTIN 27ABCDE1234F1Z5"
+    - ESIC         : "Pay ESIC dues for 02-2026"
+    - EPF          : "Fetch EPF dues for establishment PF001"
+    - Payroll      : "Process payroll for February 2026"
+    - Taxes        : "Pay TDS for PAN ABCDE1234F"
+    - Account      : "Show account balance and linked accounts"
+    - Transactions : "Search transactions for last month"
+    - Dues         : "What dues are coming up in next 30 days?"
+    - Dashboard    : "Show dashboard summary and cashflow"
+    - Company      : "Show company profile and GST numbers"
+    - Support      : "Raise a support ticket for payment issue"
+    - Multi-intent : "Pay EPF and ESIC dues for 02-2026 and show dashboard"
     """
     try:
         logger.info(f"Chat: {request.message[:100]}...")
@@ -226,7 +267,7 @@ async def chat(request: ChatRequest):
             is_multi_intent  = result["is_multi_intent"],
             response         = result["response"],
             tool_calls       = result["tool_calls"],
-            llm_provider     = settings.llm_provider
+            llm_provider     = settings.llm_provider,
         )
 
     except Exception as e:
@@ -249,15 +290,22 @@ async def chat(request: ChatRequest):
             response         = f"Error: {str(e)}",
             tool_calls       = [],
             llm_provider     = settings.llm_provider,
-            error            = str(e)
+            error            = str(e),
         )
 
 
 @app.get("/api/mcp/tools")
 async def list_all_tools():
-    """List all available tools from all MCP servers"""
-    all_tools = {"gst": [], "info": [], "redbus": []}
+    """List all available tools from all MCP servers."""
+    all_tools = {"bank": [], "gst": [], "info": []}
     total     = 0
+
+    try:
+        bank_client       = await bank_client_manager.get_client()
+        all_tools["bank"] = bank_client.available_tools
+        total            += len(bank_client.available_tools)
+    except Exception as e:
+        all_tools["bank"] = {"error": str(e)}
 
     try:
         gst_client       = await gst_client_manager.get_client()
@@ -273,181 +321,93 @@ async def list_all_tools():
     except Exception as e:
         all_tools["info"] = {"error": str(e)}
 
-    try:
-        redbus_client       = await redbus_client_manager.get_client()
-        all_tools["redbus"] = redbus_client.available_tools
-        total              += len(redbus_client.available_tools)
-    except Exception as e:
-        all_tools["redbus"] = {"error": str(e)}
-
-    return {"total_tools": total, "servers": all_tools}
+    return {
+        "total_tools": total,
+        "servers":     all_tools,
+    }
 
 
 @app.get("/api/info")
 async def info():
     return {
-        "api_version": "2.0.0",
+        "api_version":  "3.0.0",
         "llm_provider": settings.llm_provider,
-        "platform":    "Vanghee B2B",
+        "platform":     "Bank AI Assistant",
         "features": {
-            "gst_calculations":       True,
-            "onboarding_information": True,
-            "redbus_redirect":        True,
-            "multi_intent":           True,
-            "natural_language":       True,
-            "mcp_integration":        True,
-            "query_logging":          _query_logging,
-            "gstin_api":              importlib.util.find_spec("gstin_validator") is not None,
+            "core_payments":        True,
+            "bulk_upload_payment":  True,
+            "b2b":                  True,
+            "insurance":            True,
+            "bank_statement":       True,
+            "custom_sez":           True,
+            "gst":                  True,
+            "esic":                 True,
+            "epf":                  True,
+            "payroll":              True,
+            "taxes":                True,
+            "account_management":   True,
+            "transaction_history":  True,
+            "dues_reminders":       True,
+            "dashboard_analytics":  True,
+            "company_management":   True,
+            "support":              True,
+            "multi_intent":         True,
+            "natural_language":     True,
+            "mcp_integration":      True,
+            "query_logging":        _query_logging,
         },
-        "servers": {
-            "gst": {
-                "tools": [
-                    "calculate_gst", "reverse_calculate_gst",
-                    "gst_breakdown", "compare_gst_rates", "validate_gstin"
-                ]
-            },
-            "info": {
-                "tools": [
-                    "get_company_onboarding_guide", "get_company_required_documents",
-                    "get_bank_onboarding_guide",    "get_supported_banks",
-                    "get_vendor_onboarding_guide",  "get_validation_formats",
-                    "get_onboarding_faq",           "get_common_errors"
-                ]
-            },
-            "redbus": {
-                "tools": [
-                    "redbus_search_redirect", "redbus_booking_redirect",
-                    "redbus_offers_redirect", "redbus_tracking_redirect",
-                    "get_popular_routes",     "open_redbus"
-                ]
-            }
+        "server": {
+            "name":   "Bank AI Assistant",
+            "module": "mcp_server.data_server",
+            "tools": [
+                # Core Payment
+                "initiate_payment", "get_payment_status", "cancel_payment",
+                "retry_payment", "get_payment_receipt", "validate_beneficiary",
+                # Upload Payment
+                "upload_bulk_payment", "validate_payment_file",
+                # B2B
+                "onboard_business_partner", "send_invoice", "get_received_invoices",
+                "acknowledge_payment", "create_proforma_invoice",
+                "create_cd_note", "create_purchase_order",
+                # Insurance
+                "fetch_insurance_dues", "pay_insurance_premium", "get_insurance_payment_history",
+                # Bank Statement
+                "fetch_bank_statement", "download_bank_statement",
+                "get_account_balance", "get_transaction_history",
+                # Custom / SEZ
+                "pay_custom_duty", "track_custom_duty_payment", "get_custom_duty_history",
+                # GST
+                "fetch_gst_dues", "pay_gst", "create_gst_challan", "get_gst_payment_history",
+                # ESIC
+                "fetch_esic_dues", "pay_esic", "get_esic_payment_history",
+                # EPF
+                "fetch_epf_dues", "pay_epf", "get_epf_payment_history",
+                # Payroll
+                "fetch_payroll_summary", "process_payroll", "get_payroll_history",
+                # Taxes
+                "fetch_tax_dues", "pay_direct_tax", "pay_state_tax",
+                "pay_bulk_tax", "get_tax_payment_history",
+                # Account Management
+                "get_account_summary", "get_account_details",
+                "get_linked_accounts", "set_default_account",
+                # Transaction & History
+                "search_transactions", "get_transaction_details",
+                "download_transaction_report", "get_pending_transactions",
+                # Dues & Reminders
+                "get_upcoming_dues", "get_overdue_payments", "set_payment_reminder",
+                "get_reminder_list", "delete_reminder",
+                # Dashboard & Analytics
+                "get_dashboard_summary", "get_spending_analytics",
+                "get_cashflow_summary", "get_monthly_report", "get_vendor_payment_summary",
+                # Company Management
+                "get_company_profile", "update_company_details", "get_gst_profile",
+                "get_authorized_signatories", "manage_user_roles",
+                # Support
+                "raise_support_ticket", "get_ticket_history",
+                "chat_with_support", "get_contact_details",
+            ]
         }
     }
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# OPTION C — DIRECT BROWSER REDIRECT ENDPOINTS
-# ───────────────────────────────────────────────────────────────────────
-# These are plain GET endpoints that perform an HTTP 302 redirect
-# straight to the correct RedBus URL.  No frontend JS needed — just
-# point an <a href> or window.location at one of these URLs.
-#
-# Endpoint map:
-#   GET /redbus                              → redbus.in homepage
-#   GET /redbus?platform=app                → redbus://home  (deep link)
-#   GET /redbus/search?src=X&dst=Y          → search results
-#   GET /redbus/search?src=X&dst=Y&date=D   → search results on date
-#   GET /redbus/offers                      → offers page
-#   GET /redbus/offers?city=Bangalore       → city-filtered offers
-#   GET /redbus/booking/{tin}               → booking details
-#   GET /redbus/track/{tin}                 → live tracking
-# ═══════════════════════════════════════════════════════════════════════
-
-@app.get(
-    "/redbus",
-    summary="Open RedBus homepage",
-    tags=["RedBus Redirects"],
-    response_class=RedirectResponse
-)
-async def redbus_home(platform: Optional[str] = None):
-    """
-    Redirect to RedBus homepage (web or app deep link).
-
-    - /redbus              → https://www.redbus.in
-    - /redbus?platform=app → redbus://home
-    """
-    url = "redbus://home" if platform == "app" else "https://www.redbus.in"
-    logger.info(f"[Redirect] /redbus → {url}")
-    return RedirectResponse(url=url, status_code=302)
-
-
-@app.get(
-    "/redbus/search",
-    summary="Search buses on RedBus",
-    tags=["RedBus Redirects"],
-    response_class=RedirectResponse
-)
-async def redbus_search(
-    src:  str,
-    dst:  str,
-    date: Optional[str] = None   # YYYY-MM-DD
-):
-    """
-    Redirect to RedBus search results for a given route and date.
-
-    - /redbus/search?src=Bangalore&dst=Mumbai
-    - /redbus/search?src=Bangalore&dst=Mumbai&date=2026-03-15
-    """
-    if date:
-        try:
-            redbus_date = datetime.strptime(date, "%Y-%m-%d").strftime("%d-%b-%Y")
-        except ValueError:
-            redbus_date = dt_date.today().strftime("%d-%b-%Y")
-    else:
-        redbus_date = dt_date.today().strftime("%d-%b-%Y")
-
-    slug = (
-        f"{src.strip().lower().replace(' ', '-')}"
-        f"-to-"
-        f"{dst.strip().lower().replace(' ', '-')}"
-    )
-    url = f"https://www.redbus.in/bus-tickets/{slug}?doj={redbus_date}"
-    logger.info(f"[Redirect] /redbus/search → {url}")
-    return RedirectResponse(url=url, status_code=302)
-
-
-@app.get(
-    "/redbus/offers",
-    summary="View RedBus offers",
-    tags=["RedBus Redirects"],
-    response_class=RedirectResponse
-)
-async def redbus_offers(city: Optional[str] = None):
-    """
-    Redirect to RedBus offers page, optionally filtered by departure city.
-
-    - /redbus/offers
-    - /redbus/offers?city=Bangalore
-    """
-    url = "https://www.redbus.in/offers"
-    if city:
-        url += f"?src={urllib.parse.quote(city.strip())}"
-    logger.info(f"[Redirect] /redbus/offers → {url}")
-    return RedirectResponse(url=url, status_code=302)
-
-
-@app.get(
-    "/redbus/booking/{tin}",
-    summary="View RedBus booking by TIN",
-    tags=["RedBus Redirects"],
-    response_class=RedirectResponse
-)
-async def redbus_booking(tin: str):
-    """
-    Redirect to RedBus booking details for a given TIN number.
-
-    - /redbus/booking/TIN123456789
-    """
-    url = f"https://www.redbus.in/mybookings/ticket-details?tin={tin.strip().upper()}"
-    logger.info(f"[Redirect] /redbus/booking/{tin} → {url}")
-    return RedirectResponse(url=url, status_code=302)
-
-
-@app.get(
-    "/redbus/track/{tin}",
-    summary="Track a live bus journey by TIN",
-    tags=["RedBus Redirects"],
-    response_class=RedirectResponse
-)
-async def redbus_track(tin: str):
-    """
-    Redirect to RedBus live bus tracking for a given TIN number.
-
-    - /redbus/track/TIN123456789
-    """
-    url = f"https://www.redbus.in/mybookings/track-my-bus?tin={tin.strip().upper()}"
-    logger.info(f"[Redirect] /redbus/track/{tin} → {url}")
-    return RedirectResponse(url=url, status_code=302)
 
 
 # ═══════════════════════════════════════════════════════════════════════

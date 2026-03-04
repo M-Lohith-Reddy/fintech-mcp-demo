@@ -959,11 +959,35 @@ def get_transaction_history(
         get_transaction_history("key", "1234567890", txn_type="CREDIT", limit=20)
         Returns: {"account_number": "...", "total": 120, "transactions": [...]}
     """
-    logger.info(f"Fetching transaction history: account={account_number}, type={txn_type}")
+    logger.info(f"Fetching transaction history: account={account_number}, type={txn_type}, limit={limit}")
     try:
         _auth(api_key)
-        result = {"account_number": account_number, "total": 120, "transactions": []}
-        logger.info(f"Transaction history fetched: {result['total']} records")
+        all_transactions = [
+            {"txn_id": _uid("TXN"), "date": "2026-03-03", "description": "Vendor Payment — Infosys Ltd",         "amount": 250000,  "type": "DEBIT",  "mode": "NEFT", "balance": 650000,  "status": "SUCCESS"},
+            {"txn_id": _uid("TXN"), "date": "2026-03-02", "description": "GST Payment — GSTIN 27AABCU9603R1ZX",  "amount": 125000,  "type": "DEBIT",  "mode": "RTGS", "balance": 900000,  "status": "SUCCESS"},
+            {"txn_id": _uid("TXN"), "date": "2026-03-01", "description": "Client Receipt — Tata Motors",         "amount": 500000,  "type": "CREDIT", "mode": "IMPS", "balance": 1025000, "status": "SUCCESS"},
+            {"txn_id": _uid("TXN"), "date": "2026-02-28", "description": "EPF Contribution — Feb 2026",          "amount": 192100,  "type": "DEBIT",  "mode": "NEFT", "balance": 525000,  "status": "SUCCESS"},
+            {"txn_id": _uid("TXN"), "date": "2026-02-27", "description": "ESIC Contribution — Feb 2026",         "amount": 83750,   "type": "DEBIT",  "mode": "NEFT", "balance": 717100,  "status": "SUCCESS"},
+            {"txn_id": _uid("TXN"), "date": "2026-02-26", "description": "Insurance Premium — HDFC Ergo",        "amount": 25000,   "type": "DEBIT",  "mode": "UPI",  "balance": 800850,  "status": "SUCCESS"},
+            {"txn_id": _uid("TXN"), "date": "2026-02-25", "description": "Payroll Disbursement — Feb 2026",      "amount": 1850000, "type": "DEBIT",  "mode": "RTGS", "balance": 825850,  "status": "SUCCESS"},
+            {"txn_id": _uid("TXN"), "date": "2026-02-24", "description": "Client Receipt — Reliance Industries", "amount": 750000,  "type": "CREDIT", "mode": "RTGS", "balance": 2675850, "status": "SUCCESS"},
+            {"txn_id": _uid("TXN"), "date": "2026-02-23", "description": "TDS Payment — Q3 2025-26",             "amount": 450000,  "type": "DEBIT",  "mode": "NEFT", "balance": 1925850, "status": "SUCCESS"},
+            {"txn_id": _uid("TXN"), "date": "2026-02-22", "description": "Custom Duty — BOE2026021501",          "amount": 320000,  "type": "DEBIT",  "mode": "RTGS", "balance": 2375850, "status": "SUCCESS"},
+            {"txn_id": _uid("TXN"), "date": "2026-02-21", "description": "Vendor Payment — Wipro Ltd",           "amount": 180000,  "type": "DEBIT",  "mode": "NEFT", "balance": 2695850, "status": "SUCCESS"},
+            {"txn_id": _uid("TXN"), "date": "2026-02-20", "description": "Client Receipt — L&T Engineering",     "amount": 620000,  "type": "CREDIT", "mode": "IMPS", "balance": 2875850, "status": "SUCCESS"},
+        ]
+        if txn_type != "ALL":
+            all_transactions = [t for t in all_transactions if t["type"] == txn_type]
+        transactions = all_transactions[:limit]
+        result = {
+            "account_number": account_number,
+            "total":          120,
+            "returned":       len(transactions),
+            "from_date":      from_date or "2026-02-01",
+            "to_date":        to_date   or "2026-03-04",
+            "transactions":   transactions,
+        }
+        logger.info(f"Transaction history fetched: {result['total']} total, returning {result['returned']}")
         return result
     except Exception as e:
         logger.error(f"Error fetching transaction history: {e}")
@@ -2479,9 +2503,8 @@ def get_vendor_payment_summary(
         raise
 
 
-# ═══════════════════════════════════════════════════════════
 # BUSINESS / COMPANY MANAGEMENT
-# ═══════════════════════════════════════════════════════════
+
 
 @mcp.tool()
 def get_company_profile(api_key: str) -> dict:
@@ -2628,9 +2651,9 @@ def manage_user_roles(api_key: str, user_id: str, role: str, action: str) -> dic
         raise
 
 
-# ═══════════════════════════════════════════════════════════
+
 # SUPPORT & COMMUNICATION
-# ═══════════════════════════════════════════════════════════
+
 
 @mcp.tool()
 def raise_support_ticket(
