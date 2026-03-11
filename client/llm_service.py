@@ -9,7 +9,7 @@ import logging
 
 from ml_intent_classifier import intent_classifier
 from client.mcp_client import bank_client_manager, gst_client_manager, info_client_manager
-from config.config import settings          
+from config.config import settings          # FIX 4: module-level import, not per-call
 
 logger = logging.getLogger(__name__)
 
@@ -41,8 +41,21 @@ class LocalMLService:
         tool_calls_specs = analysis.get("tool_calls", [])
 
         # Inject bank API key centrally — classifier never needs to know about it
+        # Info/onboarding server tools do NOT accept api_key — skip injection for them
+        INFO_SERVER_TOOLS = {
+            # Onboarding info tools — no api_key param
+            "get_company_onboarding_guide", "get_company_required_documents",
+            "get_validation_formats", "get_onboarding_faq",
+            "get_bank_onboarding_guide", "get_vendor_onboarding_guide",
+            # GST calculator tools — no api_key param
+            "calculate_gst", "reverse_calculate_gst", "gst_breakdown",
+            "compare_gst_rates", "validate_gstin",
+        }
         if settings.bank_api_key:
             for spec in tool_calls_specs:
+                tool_nm = spec.get("tool_name", "")
+                if tool_nm in INFO_SERVER_TOOLS:
+                    continue   # info_server has no api_key param — skip
                 params = spec.get("parameters", {})
                 if "api_key" not in params:
                     params["api_key"] = settings.bank_api_key

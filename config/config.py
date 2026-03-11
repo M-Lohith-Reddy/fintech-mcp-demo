@@ -1,5 +1,6 @@
 """
-Configuration Management - Bank AI Assistant
+config/config.py — Bank AI Assistant
+Configuration Management.
 Local ML model — NO external LLM API keys required.
 """
 from pydantic_settings import BaseSettings
@@ -15,7 +16,6 @@ class Settings(BaseSettings):
     llm_provider:  str = "local_ml"
 
     # ── Bank MCP Server ───────────────────────────────────────
-    # Master API key for data_server.py — REQUIRED
     bank_api_key: str = Field(default="", alias="BANK_API_KEY")
 
     # ── GST API (optional) ────────────────────────────────────
@@ -30,19 +30,42 @@ class Settings(BaseSettings):
     # ── Logging ───────────────────────────────────────────────
     log_level: str = "INFO"
 
-    # ── Database (optional) ───────────────────────────────────
-    database_url: Optional[str] = None
+    # ── PostgreSQL (agent persistence) ────────────────────────
+    postgres_enabled: bool         = True
+    db_host:          str          = "localhost"
+    db_port:          int          = 5432
+    db_name:          str          = "bankdb"
+    db_user:          str          = "postgres"
+    db_password:      str          = ""
+
+    # ── Redis (optional distributed session memory) ────────────
+    use_redis:      bool = False
+    redis_host:     str  = "localhost"
+    redis_port:     int  = 6379
+    redis_db:       int  = 0
+    redis_password: str  = ""
+
+    # ── Agent ─────────────────────────────────────────────────
+    agent_memory_ttl_minutes: int = 60
+
+    # ── API / CORS ────────────────────────────────────────────
+    # Comma-separated origins or * for all.
+    # Production: set to your frontend domain e.g. https://app.yourbank.com
+    allowed_origins:       str = "*"
+    request_timeout_secs:  int = 30
 
     # ── Security ──────────────────────────────────────────────
     enable_audit_log:    bool = True
     data_retention_days: int  = 90
 
-    # ── Pydantic v2 style ─────────────────────────────────────
+    # ── Legacy (kept for backward compatibility) ───────────────
+    database_url: Optional[str] = None
+
     model_config = {
-        "env_file":            ".env",
-        "case_sensitive":      False,
-        "extra":               "ignore",   # replaces env_extra in v1
-        "populate_by_name":    True,       # allows both field name and alias
+        "env_file":         ".env",
+        "case_sensitive":   False,
+        "extra":            "ignore",
+        "populate_by_name": True,
     }
 
 

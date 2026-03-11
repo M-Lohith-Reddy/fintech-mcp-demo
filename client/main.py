@@ -1,34 +1,43 @@
-
 """
-FastAPI Application — Bank AI Assistant
-Payments, B2B, GST, EPF, ESIC, Payroll, Taxes,
-Insurance, Custom/SEZ, Bank Statement,
-Account Management, Transactions, Dues, Dashboard & Support.
+client/main.py — Bank AI Assistant  v3.1.0
+Production-ready FastAPI application.
 
-Uses Local ML (no external LLM) + single Bank MCP Server (data_server.py).
+Changes from v3.0.0:
+  - Wired to agent_manager (adds memory + PostgreSQL persistence)
+  - ChatRequest: session_id + user_id fields added
+  - Request timeout (30 s) on /api/chat
+  - CORS restricted to ALLOWED_ORIGINS env var
+  - latency_ms calculated from real processing_time
+  - /health extended: agent readiness + DB health
+  - New endpoints: /api/session/{id}/context|history, DELETE /api/session/{id}
+  - New endpoint:  /api/analytics/intents
 """
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv()   # must be first — manager.py reads env vars at initialize() time
 
-from fastapi import FastAPI
+import asyncio
+import importlib.util
+import logging
+import os
+import uuid
+from contextlib import asynccontextmanager
+from typing import Any, Dict, List, Optional
+
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Dict, Any, Optional
-import logging
-import importlib.util
-from contextlib import asynccontextmanager
 
 from config.config import settings
-from client.llm_service import claude_service
 from client.mcp_client import bank_client_manager, gst_client_manager, info_client_manager
+from manager import agent_manager          # ← NEW: replaces direct claude_service usage
 
 logging.basicConfig(
-    level=getattr(logging, settings.log_level.upper()),
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level  = getattr(logging, settings.log_level.upper()),
+    format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
-# Optional query logger
+# ── Optional query logger ──────────────────────────────────────────────
 _qlog_spec = importlib.util.find_spec("query_logger")
 if _qlog_spec is not None:
     from query_logger import metrics_router, query_logger
@@ -38,39 +47,44 @@ else:
     query_logger   = None
     _query_logging = False
 
+# ── Config ─────────────────────────────────────────────────────────────
+REQUEST_TIMEOUT_SECS = int(os.getenv("REQUEST_TIMEOUT_SECS", "30"))
 
-# ═══════════════════════════════════════════════════════════════════════
+# CORS: restrict in production — set ALLOWED_ORIGINS="https://app.yourdomain.com"
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "*")
+ALLOWED_ORIGINS: List[str] = (
+    ["*"] if _raw_origins == "*"
+    else [o.strip() for o in _raw_origins.split(",") if o.strip()]
+)
+
+
+# ══════════════════════════════════════════════════════════════════════
 # LIFESPAN
-# ═══════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("=" * 60)
-    logger.info("Starting Bank AI Assistant")
+    logger.info("Starting Bank AI Assistant v3.1.0")
     logger.info(f"LLM Provider : {settings.llm_provider}")
     logger.info("=" * 60)
 
-    try:
-        bank_client = await bank_client_manager.get_client()
-        logger.info(f"✓ Bank MCP Server  : {len(bank_client.available_tools)} tools")
-    except Exception as e:
-        logger.error(f"✗ Bank MCP Server failed: {e}")
+    # ── MCP clients ───────────────────────────────────────────────
+    for name, mgr in (
+        ("Bank MCP Server ", bank_client_manager),
+        ("GST Calculator  ", gst_client_manager),
+        ("Onboarding Info ", info_client_manager),
+    ):
+        try:
+            client = await mgr.get_client()
+            logger.info(f"✓ {name}: {len(client.available_tools)} tools")
+        except Exception as e:
+            logger.error(f"✗ {name}: {e}")
 
-    try:
-        gst_client = await gst_client_manager.get_client()
-        logger.info(f"✓ GST Calculator   : {len(gst_client.available_tools)} tools")
-    except Exception as e:
-        logger.error(f"✗ GST Calculator failed: {e}")
-
-    try:
-        info_client = await info_client_manager.get_client()
-        logger.info(f"✓ Onboarding Info  : {len(info_client.available_tools)} tools")
-    except Exception as e:
-        logger.error(f"✗ Onboarding Info failed: {e}")
+    # ── Agent (memory + PostgreSQL) ───────────────────────────────
+    await agent_manager.initialize()
 
     if _query_logging:
         logger.info("✓ Query logging enabled → logs/queries.jsonl")
-    else:
-        logger.info("ℹ  Query logging disabled")
 
     logger.info("=" * 60)
     logger.info("Bank AI Assistant ready!")
@@ -78,33 +92,35 @@ async def lifespan(app: FastAPI):
 
     yield
 
+    # ── Graceful shutdown ─────────────────────────────────────────
     logger.info("Shutting down...")
+    await agent_manager.shutdown()
     await bank_client_manager.close()
     await gst_client_manager.close()
     await info_client_manager.close()
     logger.info("Goodbye!")
 
 
-# ═══════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════
 # APP
-# ═══════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════
 app = FastAPI(
-    title="Bank AI Assistant",
-    description=(
-        "AI-powered banking assistant covering Payments, B2B, GST, EPF, ESIC, "
+    title       = "Bank AI Assistant",
+    description = (
+        "AI-powered banking assistant — Payments, B2B, GST, EPF, ESIC, "
         "Payroll, Taxes, Insurance, Custom/SEZ, Bank Statement, "
         "Account Management, Transactions, Dues & Support."
     ),
-    version="3.0.0",
-    lifespan=lifespan
+    version     = "3.1.0",
+    lifespan    = lifespan,
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins      = ALLOWED_ORIGINS,   # ← restricted; set ALLOWED_ORIGINS in .env
+    allow_credentials  = True,
+    allow_methods      = ["*"],
+    allow_headers      = ["*"],
 )
 
 if metrics_router:
@@ -112,152 +128,124 @@ if metrics_router:
     logger.info("✓ /metrics endpoints registered")
 
 
-# ═══════════════════════════════════════════════════════════════════════
-# MODELS
-# ═══════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════
+# REQUEST / RESPONSE MODELS
+# ══════════════════════════════════════════════════════════════════════
 class ChatRequest(BaseModel):
     model_config = ConfigDict(
-        json_schema_extra={
-            "examples": [
-                {"message": "Initiate NEFT payment of 50000 to BENE001"},
-                {"message": "What is my account balance?"},
-                {"message": "Pay GST for GSTIN 27ABCDE1234F1Z5"},
-                {"message": "Process payroll for February 2026"},
-                {"message": "Show upcoming dues for next 30 days"},
-                {"message": "Upload bulk payment file"},
-                {"message": "Send invoice to partner PART001 for 1,00,000"},
-                {"message": "Pay EPF and ESIC dues for 02-2026"},
-                {"message": "Get dashboard summary and spending analytics"},
-            ]
-        }
+        json_schema_extra={"examples": [
+            {"message": "Show my account balance",
+             "session_id": "sess-abc-123", "user_id": "user-001"},
+            {"message": "Pay EPF and ESIC dues for 02-2026",
+             "session_id": "sess-abc-123", "user_id": "user-001"},
+        ]}
     )
-    message: str = Field(..., description="User's natural language banking query")
+    message:    str           = Field(...,            description="User's natural language banking query")
+    session_id: Optional[str] = Field(default=None,  description="Session ID — auto-generated if omitted")
+    user_id:    Optional[str] = Field(default=None,  description="Authenticated user ID — 'anonymous' if omitted")
+    # kept for backwards compatibility (ignored when agent_manager is active)
     conversation_history: Optional[List[Dict[str, str]]] = Field(default=None)
 
 
 class ChatResponse(BaseModel):
-    success: bool
+    success:          bool
     intents_detected: List[str]
-    is_multi_intent: bool
-    response: str
-    tool_calls: List[Dict[str, Any]]
-    llm_provider: str = Field(default="local_ml")
-    error: Optional[str] = None
+    is_multi_intent:  bool
+    response:         str
+    tool_calls:       List[Dict[str, Any]]
+    llm_provider:     str            = "local_ml"
+    session_id:       Optional[str] = None
+    context_used:     Optional[bool] = None
+    memory_snapshot:  Optional[Dict] = None
+    error:            Optional[str]  = None
 
 
-# ═══════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════
 # STANDARD ENDPOINTS
-# ═══════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════
 @app.get("/")
 async def root():
     return {
         "message":      "Bank AI Assistant",
-        "version":      "3.0.0",
+        "version":      "3.1.0",
         "llm_provider": settings.llm_provider,
-        "model":        "local_ml",
-        "features": [
-            "Core Payments", "Bulk Upload Payments",
-            "B2B (Invoice, PO, CD Note, Proforma)",
-            "Insurance", "Bank Statement",
-            "Custom Duty / SEZ",
-            "GST (Fetch, Pay, Challan)",
-            "ESIC", "EPF", "Payroll",
-            "Taxes (Direct, State, Bulk)",
-            "Account Management",
-            "Transaction History & Search",
-            "Dues & Reminders",
-            "Dashboard & Analytics",
-            "Company Management",
-            "Support & Communication",
-        ],
-        "docs":   "/docs",
-        "health": "/health",
+        "docs":         "/docs",
+        "health":       "/health",
     }
 
 
 @app.get("/health")
 async def health():
-    server_status = {}
-    total_tools   = 0
+    """
+    Full health check:
+      - MCP server connectivity
+      - Agent readiness
+      - PostgreSQL connectivity
+    """
+    server_status: Dict[str, Any] = {}
+    total_tools = 0
 
-    try:
-        bank_client = await bank_client_manager.get_client()
-        server_status["bank"] = {
-            "connected": True,
-            "tools": len(bank_client.available_tools),
-        }
-        total_tools += len(bank_client.available_tools)
-    except Exception as e:
-        server_status["bank"] = {"connected": False, "error": str(e)}
-
-    try:
-        gst_client = await gst_client_manager.get_client()
-        server_status["gst"] = {
-            "connected": True,
-            "tools": len(gst_client.available_tools),
-        }
-        total_tools += len(gst_client.available_tools)
-    except Exception as e:
-        server_status["gst"] = {"connected": False, "error": str(e)}
-
-    try:
-        info_client = await info_client_manager.get_client()
-        server_status["info"] = {
-            "connected": True,
-            "tools": len(info_client.available_tools),
-        }
-        total_tools += len(info_client.available_tools)
-    except Exception as e:
-        server_status["info"] = {"connected": False, "error": str(e)}
+    for name, mgr in (
+        ("bank", bank_client_manager),
+        ("gst",  gst_client_manager),
+        ("info", info_client_manager),
+    ):
+        try:
+            client = await mgr.get_client()
+            server_status[name] = {"connected": True, "tools": len(client.available_tools)}
+            total_tools += len(client.available_tools)
+        except Exception as e:
+            server_status[name] = {"connected": False, "error": str(e)}
 
     return {
         "status":        "healthy",
+        "version":       "3.1.0",
         "llm_provider":  settings.llm_provider,
         "total_tools":   total_tools,
+        "agent_ready":   agent_manager.is_ready(),          # ← NEW
+        "db_healthy":    await agent_manager.db_health(),   # ← NEW
         "query_logging": _query_logging,
+        "cors_origins":  ALLOWED_ORIGINS,
         "servers":       server_status,
+        "storage":       await agent_manager.storage_stats(),  # ← NEW
     }
 
 
+# ══════════════════════════════════════════════════════════════════════
+# MAIN CHAT ENDPOINT
+# ══════════════════════════════════════════════════════════════════════
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     """
-    Main chat endpoint — handles all banking queries.
+    Main chat endpoint — handles all banking queries with session memory.
 
-    Supported query categories:
-    - Payments     : "Initiate NEFT payment of 50000 to vendor"
-    - Bulk Payment : "Upload bulk payment file"
-    - B2B          : "Send invoice to partner for 1 lakh"
-    - Insurance    : "Show insurance premium dues"
-    - Bank Stmt    : "Get statement for Jan 2026"
-    - Custom/SEZ   : "Pay custom duty for BOE12345"
-    - GST          : "Pay GST for GSTIN 27ABCDE1234F1Z5"
-    - ESIC         : "Pay ESIC dues for 02-2026"
-    - EPF          : "Fetch EPF dues for establishment PF001"
-    - Payroll      : "Process payroll for February 2026"
-    - Taxes        : "Pay TDS for PAN ABCDE1234F"
-    - Account      : "Show account balance and linked accounts"
-    - Transactions : "Search transactions for last month"
-    - Dues         : "What dues are coming up in next 30 days?"
-    - Dashboard    : "Show dashboard summary and cashflow"
-    - Company      : "Show company profile and GST numbers"
-    - Support      : "Raise a support ticket for payment issue"
-    - Multi-intent : "Pay EPF and ESIC dues for 02-2026 and show dashboard"
+    Pass the same session_id across multiple requests to enable context
+    carry-over (e.g. company_id / gstin remembered between turns).
     """
-    try:
-        logger.info(f"Chat: {request.message[:100]}...")
+    session_id = (request.session_id or str(uuid.uuid4())).strip()
+    user_id    = (request.user_id    or "anonymous").strip()
 
-        result = await claude_service.process_query(
-            request.message,
-            request.conversation_history
+    logger.info(f"[Chat] session={session_id} user={user_id} msg={request.message[:80]!r}")
+
+    try:
+        # ── Timeout guard — prevents MCP slow calls hanging the server ──
+        result = await asyncio.wait_for(
+            agent_manager.process(
+                message    = request.message,
+                session_id = session_id,
+                user_id    = user_id,
+            ),
+            timeout = REQUEST_TIMEOUT_SECS,
         )
+
+        processing_ms = int(result.get("processing_time", 0) * 1000)
 
         if _query_logging:
             query_logger.log_query(
                 query      = request.message,
                 intents    = result["intents_detected"],
                 tools      = [t["tool"] for t in result.get("tool_calls", [])],
-                latency_ms = 0,
+                latency_ms = processing_ms,    # ← real value now
                 success    = True,
             )
 
@@ -268,69 +256,97 @@ async def chat(request: ChatRequest):
             response         = result["response"],
             tool_calls       = result["tool_calls"],
             llm_provider     = settings.llm_provider,
+            session_id       = session_id,
+            context_used     = result.get("context_used"),
+            memory_snapshot  = result.get("memory_snapshot"),
         )
 
-    except Exception as e:
-        logger.error(f"Chat error: {e}", exc_info=True)
-
+    except asyncio.TimeoutError:
+        logger.error(f"[Chat] Timeout after {REQUEST_TIMEOUT_SECS}s — session={session_id}")
         if _query_logging:
             query_logger.log_query(
-                query      = request.message,
-                intents    = [],
-                tools      = [],
-                latency_ms = 0,
-                success    = False,
-                error      = str(e),
+                query=request.message, intents=[], tools=[],
+                latency_ms=REQUEST_TIMEOUT_SECS * 1000,
+                success=False, error="timeout",
             )
-
         return ChatResponse(
-            success          = False,
-            intents_detected = [],
-            is_multi_intent  = False,
-            response         = f"Error: {str(e)}",
-            tool_calls       = [],
-            llm_provider     = settings.llm_provider,
-            error            = str(e),
+            success=False, intents_detected=[], is_multi_intent=False,
+            response="Request timed out. Please try again.",
+            tool_calls=[], llm_provider=settings.llm_provider,
+            session_id=session_id, error="timeout",
+        )
+
+    except Exception as e:
+        logger.error(f"[Chat] Error session={session_id}: {e}", exc_info=True)
+        if _query_logging:
+            query_logger.log_query(
+                query=request.message, intents=[], tools=[],
+                latency_ms=0, success=False, error=str(e),
+            )
+        return ChatResponse(
+            success=False, intents_detected=[], is_multi_intent=False,
+            response="I encountered an error. Please try again.",
+            tool_calls=[], llm_provider=settings.llm_provider,
+            session_id=session_id, error=str(e),
         )
 
 
-@app.get("/api/mcp/tools")
-async def list_all_tools():
-    """List all available tools from all MCP servers."""
-    all_tools = {"bank": [], "gst": [], "info": []}
-    total     = 0
-
-    try:
-        bank_client       = await bank_client_manager.get_client()
-        all_tools["bank"] = bank_client.available_tools
-        total            += len(bank_client.available_tools)
-    except Exception as e:
-        all_tools["bank"] = {"error": str(e)}
-
-    try:
-        gst_client       = await gst_client_manager.get_client()
-        all_tools["gst"] = gst_client.available_tools
-        total           += len(gst_client.available_tools)
-    except Exception as e:
-        all_tools["gst"] = {"error": str(e)}
-
-    try:
-        info_client       = await info_client_manager.get_client()
-        all_tools["info"] = info_client.available_tools
-        total            += len(info_client.available_tools)
-    except Exception as e:
-        all_tools["info"] = {"error": str(e)}
-
+# ══════════════════════════════════════════════════════════════════════
+# SESSION ENDPOINTS
+# ══════════════════════════════════════════════════════════════════════
+@app.get("/api/session/{session_id}/context")
+async def get_session_context(session_id: str):
+    """
+    Return what the agent currently knows about a session.
+    Useful for debugging memory / context injection.
+    """
+    if not agent_manager.is_ready():
+        raise HTTPException(status_code=503, detail="Agent not ready")
     return {
-        "total_tools": total,
-        "servers":     all_tools,
+        "session_id": session_id,
+        "context":    agent_manager.get_context(session_id),
     }
 
 
+@app.get("/api/session/{session_id}/history")
+async def get_session_history(session_id: str):
+    """Return in-memory conversation history for a session."""
+    if not agent_manager.is_ready():
+        raise HTTPException(status_code=503, detail="Agent not ready")
+    return {
+        "session_id": session_id,
+        "history":    agent_manager.get_history(session_id),
+    }
+
+
+@app.delete("/api/session/{session_id}")
+async def clear_session(session_id: str):
+    """Clear session memory — call on user logout."""
+    if not agent_manager.is_ready():
+        raise HTTPException(status_code=503, detail="Agent not ready")
+    agent_manager.clear_session(session_id)
+    return {"session_id": session_id, "cleared": True}
+
+
+# ══════════════════════════════════════════════════════════════════════
+# ANALYTICS
+# ══════════════════════════════════════════════════════════════════════
+@app.get("/api/analytics/intents")
+async def intent_analytics(days: int = 7):
+    """Intent frequency + avg confidence for the past N days (from PostgreSQL)."""
+    return {
+        "days":  days,
+        "stats": await agent_manager.intent_stats(days=days),
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════
+# API INFO
+# ══════════════════════════════════════════════════════════════════════
 @app.get("/api/info")
 async def info():
     return {
-        "api_version":  "3.0.0",
+        "api_version":  "3.1.0",
         "llm_provider": settings.llm_provider,
         "platform":     "Bank AI Assistant",
         "features": {
@@ -354,6 +370,7 @@ async def info():
             "multi_intent":         True,
             "natural_language":     True,
             "mcp_integration":      True,
+            "session_memory":       True,
             "query_logging":        _query_logging,
         },
         "server": {
@@ -410,14 +427,36 @@ async def info():
     }
 
 
-# ═══════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════
+# TOOL LISTING
+# ══════════════════════════════════════════════════════════════════════
+@app.get("/api/mcp/tools")
+async def list_all_tools():
+    """List all available tools from all MCP servers."""
+    all_tools: Dict[str, Any] = {}
+    total = 0
+    for name, mgr in (
+        ("bank", bank_client_manager),
+        ("gst",  gst_client_manager),
+        ("info", info_client_manager),
+    ):
+        try:
+            client = await mgr.get_client()
+            all_tools[name] = client.available_tools
+            total += len(client.available_tools)
+        except Exception as e:
+            all_tools[name] = {"error": str(e)}
+    return {"total_tools": total, "servers": all_tools}
+
+
+# ══════════════════════════════════════════════════════════════════════
 # ENTRY POINT
-# ═══════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
         "client.main:app",
         host   = settings.host,
         port   = settings.port,
-        reload = settings.debug
+        reload = settings.debug,
     )

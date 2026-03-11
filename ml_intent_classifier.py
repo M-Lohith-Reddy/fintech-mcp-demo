@@ -306,7 +306,7 @@ class ProductionIntentClassifier:
                     "pay gst", "gst payment", "pay igst",
                     "pay cgst", "pay sgst", "pay cess"
                 ],
-                "multi_triggers": ["pay gst", "gst payment", "pay igst", "pay cgst"]
+                "multi_triggers": ["pay gst", "gst payment", "pay igst", "pay cgst", "epf esic and gst", "esic and gst", "and gst for"]
             },
             "create_gst_challan": {
                 "tool": "create_gst_challan",
@@ -351,7 +351,9 @@ class ProductionIntentClassifier:
                     "pay esic", "esic payment", "esic challan",
                     "employee insurance payment"
                 ],
-                "multi_triggers": ["pay esic", "esic payment", "esic challan"]
+                "multi_triggers": ["pay esic", "esic payment", "esic challan", "pay epf and esic",
+                                   "esic dues for", "esic for 0", "epf esic and", "esic and gst",
+                                   "epf, esic", "esic,", "pay esic and"]
             },
             "get_esic_payment_history": {
                 "tool": "get_esic_payment_history",
@@ -360,7 +362,9 @@ class ProductionIntentClassifier:
                     "esic history", "esic payment history",
                     "past esic", "esic records"
                 ],
-                "multi_triggers": ["esic history", "esic payment history", "past esic"]
+                "multi_triggers": ["esic history", "esic payment history", "past esic",
+                                   "epf and esic history", "epf and esic payment",
+                                   "esic history and", "and esic history"]
             },
 
             # ── EPF ───────────────────────────────────────────────────
@@ -389,7 +393,9 @@ class ProductionIntentClassifier:
                     "epf history", "pf history", "epf payment history",
                     "past pf payments", "epf records"
                 ],
-                "multi_triggers": ["epf history", "pf history", "epf payment history"]
+                "multi_triggers": ["epf history", "pf history", "epf payment history",
+                                   "epf and esic history", "epf and esic payment",
+                                   "show epf and", "epf history and"]
             },
 
             # ── PAYROLL ───────────────────────────────────────────────
@@ -814,12 +820,16 @@ class ProductionIntentClassifier:
                     "company onboarding", "register company", "company registration",
                     "how to onboard company", "start company", "onboard organization",
                     "company setup", "register my company", "register a company",
-                    "setting up a company", "set up company", "company register"
+                    "setting up a company", "set up company", "company register",
+                    "explain the company onboarding", "company onboarding process",
+                    "onboard my company", "how do i onboard my company", "onboard my company to", "how do i onboard my",
+                    "onboard my organization", "company registration process"
                 ],
                 "multi_triggers": [
                     "company onboarding", "register company", "company registration",
                     "register my company", "register a company", "company setup",
-                    "set up company", "registration process"
+                    "set up company", "registration process", "onboard my company",
+                    "company onboarding process", "explain the company onboarding"
                 ]
             },
             "company_documents": {
@@ -845,9 +855,12 @@ class ProductionIntentClassifier:
                 "required_params": [],
                 "keywords": [
                     "how long onboarding", "onboarding timeline", "processing time",
-                    "approval time", "how many days to register", "onboarding duration"
+                    "approval time", "how many days to register", "onboarding duration",
+                    "onboarding faq", "faq onboarding", "frequently asked",
+                    "common questions onboarding", "onboarding questions"
                 ],
-                "multi_triggers": ["processing time", "approval time", "how many days", "onboarding timeline"]
+                "multi_triggers": ["processing time", "approval time", "how many days",
+                                   "onboarding timeline", "onboarding faq", "frequently asked"]
             },
             "bank_guide": {
                 "tool": "get_bank_onboarding_guide",
@@ -865,9 +878,11 @@ class ProductionIntentClassifier:
                 "keywords": [
                     "vendor onboarding", "add vendor", "register vendor",
                     "supplier onboarding", "how to add vendor", "vendor registration",
-                    "onboard supplier", "create vendor"
+                    "onboard supplier", "create vendor", "how do i onboard a vendor",
+                    "how to onboard vendor", "onboard a new vendor", "vendor setup guide"
                 ],
-                "multi_triggers": ["vendor onboarding", "add vendor", "register vendor", "supplier onboarding"]
+                "multi_triggers": ["vendor onboarding", "add vendor", "register vendor",
+                                   "supplier onboarding", "how do i onboard a vendor", "onboard a new vendor"]
             },
 
             # ── SUPPORT ───────────────────────────────────────────────
@@ -1132,9 +1147,10 @@ class ProductionIntentClassifier:
 
         self.classifier = OneVsRestClassifier(
             LogisticRegression(
-                max_iter=2000,
+                max_iter=1000,
                 solver="lbfgs",
                 C=1.5,
+                n_jobs=-1,
                 class_weight="balanced"
             )
         )
@@ -1234,8 +1250,16 @@ class ProductionIntentClassifier:
         # GROUP 1: PAYMENT CONFLICTS
         # ═══════════════════════════════════════════════════════════════
 
+        # initiate_payment needs an explicit send/transfer verb — not just a number
+        if "initiate_payment" in resolved:
+            pay_signals = ["send", "transfer", "pay to", "initiate", "make payment",
+                           "make a payment", "fund transfer", "neft", "rtgs", "imps", "upi",
+                           "remit", "wire", "dispatch payment", "i want to pay",
+                           "need to pay", "want to transfer"]
+            if not any(sig in query_lower for sig in pay_signals):
+                resolved = [i for i in resolved if i != "initiate_payment"]
+
         # initiate_payment should NOT fire alongside get_payment_status
-        # "check payment status" should NOT trigger initiate_payment
         if "initiate_payment" in resolved and "get_payment_status" in resolved:
             pay_signals = ["send", "transfer", "pay to", "initiate", "make payment", "fund transfer"]
             if not any(sig in query_lower for sig in pay_signals):
@@ -1313,8 +1337,12 @@ class ProductionIntentClassifier:
         # get_transaction_details standalone: needs txn id or explicit detail signal
         if "get_transaction_details" in resolved and "get_transaction_history" not in resolved:
             detail_signals = ["txn id", "transaction id", "ref no", "utr",
-                              "detail of", "info of", "breakdown of", "specific transaction"]
-            if not any(sig in query_lower for sig in detail_signals):
+                              "detail of", "info of", "breakdown of", "specific transaction",
+                              "txnref", "txn ref", "details for txn", "details of txn"]
+            # also fire if query contains a TXN-like reference token
+            import re as _re2
+            has_txn_ref = bool(_re2.search(r'(txn|ref|tran)\w*\d+', query_lower))
+            if not any(sig in query_lower for sig in detail_signals) and not has_txn_ref:
                 resolved = [i for i in resolved if i != "get_transaction_details"]
 
         # get_pending_transactions: needs explicit pending signal
@@ -1353,8 +1381,14 @@ class ProductionIntentClassifier:
 
         # get_account_balance fires → suppress get_account_details unless details explicit
         if "get_account_balance" in resolved and "get_account_details" in resolved:
-            detail_signals = ["details", "ifsc", "account number", "branch", "account info"]
-            if not any(sig in query_lower for sig in detail_signals):
+            # "balance" keyword → user wants balance only, suppress details
+            if "balance" in query_lower or "available" in query_lower or "current balance" in query_lower:
+                resolved = [i for i in resolved if i != "get_account_details"]
+            # "details/ifsc/branch" keyword → user wants details, suppress balance
+            elif any(sig in query_lower for sig in ("details", "ifsc", "branch", "account info", "holder name")):
+                resolved = [i for i in resolved if i != "get_account_balance"]
+            # default → suppress details (balance is more common intent)
+            else:
                 resolved = [i for i in resolved if i != "get_account_details"]
 
         # get_linked_accounts: needs explicit "linked" or "connected" signal
@@ -1381,23 +1415,46 @@ class ProductionIntentClassifier:
 
         # Pay vs Fetch dues — if only paying, suppress fetch unless dues explicitly mentioned
         if "pay_gst" in resolved and "fetch_gst_dues" in resolved:
-            if "dues" not in query_lower and "pending" not in query_lower and "how much" not in query_lower:
+            # "show/view/check/fetch dues" → only fetch, suppress pay
+            if any(w in query_lower for w in ("show", "view", "check", "fetch", "get", "display", "what", "how much", "pending")):
+                resolved = [i for i in resolved if i != "pay_gst"]
+            # explicit pay verb → keep pay, suppress fetch
+            elif any(w in query_lower for w in ("pay ", "paying", "payment", "submit", "remit")):
+                resolved = [i for i in resolved if i != "fetch_gst_dues"]
+            # no fetch signal and no dues → suppress fetch
+            elif "dues" not in query_lower:
                 resolved = [i for i in resolved if i != "fetch_gst_dues"]
 
         if "pay_epf" in resolved and "fetch_epf_dues" in resolved:
-            if "dues" not in query_lower and "pending" not in query_lower and "how much" not in query_lower:
+            if any(w in query_lower for w in ("show", "view", "check", "fetch", "get", "display", "what", "how much", "pending")):
+                resolved = [i for i in resolved if i != "pay_epf"]
+            elif any(w in query_lower for w in ("pay ", "paying", "payment", "submit", "remit")):
+                resolved = [i for i in resolved if i != "fetch_epf_dues"]
+            elif "dues" not in query_lower:
                 resolved = [i for i in resolved if i != "fetch_epf_dues"]
 
         if "pay_esic" in resolved and "fetch_esic_dues" in resolved:
-            if "dues" not in query_lower and "pending" not in query_lower and "how much" not in query_lower:
+            if any(w in query_lower for w in ("show", "view", "check", "fetch", "get", "display", "what", "how much", "pending")):
+                resolved = [i for i in resolved if i != "pay_esic"]
+            elif any(w in query_lower for w in ("pay ", "paying", "payment", "submit", "remit")):
+                resolved = [i for i in resolved if i != "fetch_esic_dues"]
+            elif "dues" not in query_lower:
                 resolved = [i for i in resolved if i != "fetch_esic_dues"]
 
         if "pay_direct_tax" in resolved and "fetch_tax_dues" in resolved:
-            if "dues" not in query_lower and "pending" not in query_lower and "how much" not in query_lower:
+            if any(w in query_lower for w in ("show", "view", "check", "fetch", "get", "display", "what", "how much", "pending", "liability", "outstanding")):
+                resolved = [i for i in resolved if i != "pay_direct_tax"]
+            elif any(w in query_lower for w in ("pay ", "paying", "payment", "submit", "remit")):
+                resolved = [i for i in resolved if i != "fetch_tax_dues"]
+            elif "dues" not in query_lower:
                 resolved = [i for i in resolved if i != "fetch_tax_dues"]
 
         if "pay_insurance_premium" in resolved and "fetch_insurance_dues" in resolved:
-            if "dues" not in query_lower and "pending" not in query_lower and "how much" not in query_lower:
+            if any(w in query_lower for w in ("show", "view", "check", "fetch", "get", "display", "what", "how much", "pending", "liability", "outstanding")):
+                resolved = [i for i in resolved if i != "pay_insurance_premium"]
+            elif any(w in query_lower for w in ("pay ", "paying", "payment", "submit", "remit")):
+                resolved = [i for i in resolved if i != "fetch_insurance_dues"]
+            elif "dues" not in query_lower:
                 resolved = [i for i in resolved if i != "fetch_insurance_dues"]
 
         # Pay vs History — paying should not trigger history unless explicit
@@ -1408,12 +1465,19 @@ class ProductionIntentClassifier:
 
         if "pay_epf" in resolved and "get_epf_payment_history" in resolved:
             hist_signals = ["history", "past", "previous", "records", "last month"]
-            if not any(sig in query_lower for sig in hist_signals):
+            pay_signals  = ["pay ", "paying", "payment of"]
+            if any(sig in query_lower for sig in hist_signals):
+                resolved = [i for i in resolved if i != "pay_epf"]
+            elif not any(sig in query_lower for sig in pay_signals):
                 resolved = [i for i in resolved if i != "get_epf_payment_history"]
 
         if "pay_esic" in resolved and "get_esic_payment_history" in resolved:
             hist_signals = ["history", "past", "previous", "records", "last month"]
-            if not any(sig in query_lower for sig in hist_signals):
+            pay_signals  = ["pay ", "paying", "payment of"]
+            if any(sig in query_lower for sig in hist_signals):
+                # history keyword → user wants history, suppress pay
+                resolved = [i for i in resolved if i != "pay_esic"]
+            elif not any(sig in query_lower for sig in pay_signals):
                 resolved = [i for i in resolved if i != "get_esic_payment_history"]
 
         if "pay_direct_tax" in resolved and "get_tax_payment_history" in resolved:
@@ -1433,9 +1497,24 @@ class ProductionIntentClassifier:
 
         # pay_custom_duty vs track_custom_duty_payment: pay vs track
         if "pay_custom_duty" in resolved and "track_custom_duty_payment" in resolved:
-            track_signals = ["track", "status", "check", "where is"]
-            if not any(sig in query_lower for sig in track_signals):
+            track_signals = ["track", "status", "check", "where is", "tracing"]
+            pay_signals   = ["pay ", "paying", "payment of", "remit", "submit duty"]
+            has_track = any(sig in query_lower for sig in track_signals)
+            has_pay   = any(sig in query_lower for sig in pay_signals)
+            if has_track and not has_pay:
+                resolved = [i for i in resolved if i != "pay_custom_duty"]
+            elif has_pay and not has_track:
                 resolved = [i for i in resolved if i != "track_custom_duty_payment"]
+
+        # pay_custom_duty standalone: needs explicit pay signal (not just "custom duty")
+        if "pay_custom_duty" in resolved and "track_custom_duty_payment" not in resolved:
+            pay_signals = ["pay ", "paying", "payment of", "remit", "submit", "clear duty"]
+            if not any(sig in query_lower for sig in pay_signals):
+                resolved = [i for i in resolved if i != "pay_custom_duty"]
+
+        # get_payment_status should NOT fire on custom duty tracking queries
+        if "get_payment_status" in resolved and "track_custom_duty_payment" in resolved:
+            resolved = [i for i in resolved if i != "get_payment_status"]
 
         # pay_gst vs create_gst_challan: challan is creation, pay is action
         if "pay_gst" in resolved and "create_gst_challan" in resolved:
@@ -1519,10 +1598,10 @@ class ProductionIntentClassifier:
 
         # get_dashboard_summary fires → suppress overlapping analytics unless explicit
         if "get_dashboard_summary" in resolved:
-            cashflow_signals  = ["cashflow", "cash flow", "inflow", "outflow"]
-            spending_signals  = ["spending", "expense", "where am i spending"]
-            vendor_signals    = ["vendor payment", "vendor wise", "top vendor"]
-            monthly_signals   = ["monthly report", "month report", "report for"]
+            cashflow_signals = ["cashflow", "cash flow", "inflow", "outflow", "net cash"]
+            spending_signals = ["spending", "expense", "where am i spending", "category wise"]
+            vendor_signals   = ["vendor payment", "vendor wise", "top vendor"]
+            monthly_signals  = ["monthly report", "month report", "report for", "month end"]
             if not any(sig in query_lower for sig in cashflow_signals):
                 resolved = [i for i in resolved if i != "get_cashflow_summary"]
             if not any(sig in query_lower for sig in spending_signals):
@@ -1531,6 +1610,19 @@ class ProductionIntentClassifier:
                 resolved = [i for i in resolved if i != "get_vendor_payment_summary"]
             if not any(sig in query_lower for sig in monthly_signals):
                 resolved = [i for i in resolved if i != "get_monthly_report"]
+            # Also suppress get_upcoming_dues / get_overdue_payments unless explicit
+            dues_signals = ["dues", "overdue", "upcoming payment", "what is due"]
+            if not any(sig in query_lower for sig in dues_signals):
+                resolved = [i for i in resolved if i not in ("get_upcoming_dues", "get_overdue_payments")]
+
+        # standalone cashflow / spending — suppress if keyword not explicitly present
+        if "get_cashflow_summary" in resolved and "get_dashboard_summary" not in resolved:
+            if not any(w in query_lower for w in ("cashflow", "cash flow", "inflow", "outflow", "net cash")):
+                resolved = [i for i in resolved if i != "get_cashflow_summary"]
+
+        if "get_spending_analytics" in resolved and "get_dashboard_summary" not in resolved:
+            if not any(w in query_lower for w in ("spending", "expense", "category wise", "where am i spending")):
+                resolved = [i for i in resolved if i != "get_spending_analytics"]
 
         # get_monthly_report should only fire with explicit monthly/report signal
         if "get_monthly_report" in resolved:
@@ -1615,15 +1707,22 @@ class ProductionIntentClassifier:
             if not any(sig in query_lower for sig in proforma_signals):
                 resolved = [i for i in resolved if i != "create_proforma_invoice"]
 
+        # onboard_business_partner vs company_guide: action vs guide/info
+        if "onboard_business_partner" in resolved and "company_guide" in resolved:
+            guide_signals  = ["how to", "how do i", "explain", "guide", "process",
+                              "steps", "what is", "tell me", "describe", "procedure"]
+            if any(sig in query_lower for sig in guide_signals):
+                resolved = [i for i in resolved if i != "onboard_business_partner"]
+
         # onboard_business_partner vs vendor_guide: action vs guide
         if "onboard_business_partner" in resolved and "vendor_guide" in resolved:
-            onboard_signals = ["onboard", "add", "register", "new partner", "new vendor"]
-            guide_signals   = ["guide", "how to", "process", "steps", "what is"]
-            has_onboard = any(sig in query_lower for sig in onboard_signals)
+            # "how do I / how to / steps / guide" → user wants guidance, not to actually onboard
+            guide_signals   = ["how do i", "how to", "guide", "process", "steps", "what is",
+                               "explain", "tell me about", "procedure"]
+            onboard_signals = ["onboard abc", "add vendor", "register vendor", "new partner ABC",
+                               "onboard company", "add partner"]  # specific action signals
             has_guide   = any(sig in query_lower for sig in guide_signals)
-            if has_onboard and not has_guide:
-                resolved = [i for i in resolved if i != "vendor_guide"]
-            elif has_guide and not has_onboard:
+            if has_guide:
                 resolved = [i for i in resolved if i != "onboard_business_partner"]
 
         # ═══════════════════════════════════════════════════════════════
@@ -1652,17 +1751,23 @@ class ProductionIntentClassifier:
             if not any(sig in query_lower for sig in calc_signals):
                 resolved = [i for i in resolved if i != "calculate_gst"]
 
-        # reverse_gst vs calculate_gst: reverse vs forward
+        # reverse_gst vs calculate_gst: reverse verb always wins — suppress calculate_gst
         if "reverse_gst" in resolved and "calculate_gst" in resolved:
+            # "reverse" keyword unambiguously indicates reverse calculation — always suppress forward calc
             reverse_signals = ["reverse", "remove gst", "exclude gst", "without gst",
-                               "before gst", "base price from", "inclusive"]
-            calc_signals    = ["calculate gst", "add gst", "gst on", "compute gst"]
-            has_reverse = any(sig in query_lower for sig in reverse_signals)
-            has_calc    = any(sig in query_lower for sig in calc_signals)
-            if has_reverse and not has_calc:
+                               "before gst", "base price from", "inclusive", "reverse calculate"]
+            if any(sig in query_lower for sig in reverse_signals):
                 resolved = [i for i in resolved if i != "calculate_gst"]
-            elif has_calc and not has_reverse:
+            else:
                 resolved = [i for i in resolved if i != "reverse_gst"]
+
+        # gst_breakdown: needs explicit breakdown/component signal (not just a rate+amount)
+        if "gst_breakdown" in resolved:
+            breakdown_signals = ["breakdown", "break down", "split", "components",
+                                 "cgst sgst igst", "how is gst split", "intra state",
+                                 "inter state", "component wise", "gst split", "along with breakdown"]
+            if not any(sig in query_lower for sig in breakdown_signals):
+                resolved = [i for i in resolved if i != "gst_breakdown"]
 
         # validate_gstin: must have explicit GSTIN or validate signal
         if "validate_gstin" in resolved:
@@ -1688,7 +1793,9 @@ class ProductionIntentClassifier:
         # company_guide sub-intents: only fire when explicitly asked
         if "company_guide" in resolved:
             doc_signals     = ["document", "checklist", "what documents", "required documents", "papers"]
-            process_signals = ["how long", "timeline", "processing time", "approval", "how many days", "days to"]
+            process_signals = ["how long", "timeline", "processing time", "approval",
+                                "how many days", "days to", "faq", "frequently asked",
+                                "common questions", "onboarding faq", "questions about onboarding"]
             field_signals   = ["pan format", "din", "cin", "field", "what is cin", "what is din"]
             if not any(sig in query_lower for sig in doc_signals):
                 resolved = [i for i in resolved if i != "company_documents"]
@@ -1696,6 +1803,15 @@ class ProductionIntentClassifier:
                 resolved = [i for i in resolved if i != "company_process"]
             if not any(sig in query_lower for sig in field_signals):
                 resolved = [i for i in resolved if i != "company_field"]
+
+        # company_process standalone: needs explicit FAQ/process signal
+        if "company_process" in resolved and "company_guide" not in resolved:
+            process_standalone = ["faq", "frequently asked", "onboarding faq", "common question",
+                                   "how long", "timeline", "approval time", "processing time",
+                                   "how many days", "steps for", "onboarding questions",
+                                   "common questions"]
+            if not any(sig in query_lower for sig in process_standalone):
+                resolved = [i for i in resolved if i != "company_process"]
 
         # bank_guide vs vendor_guide: bank vs vendor context
         if "bank_guide" in resolved and "vendor_guide" in resolved:
@@ -1713,6 +1829,43 @@ class ProductionIntentClassifier:
             guide_signals = ["guide", "how to", "process", "steps", "what is", "explain"]
             if not any(sig in query_lower for sig in guide_signals):
                 resolved = [i for i in resolved if i != "bank_guide"]
+
+        # bank_guide must have explicit onboarding/registration signal
+        # "show bank statement" / "bank account balance" should NOT trigger bank_guide
+        if "bank_guide" in resolved:
+            bank_guide_signals = [
+                "bank onboarding", "register bank", "bank registration", "add bank account",
+                "supported banks", "connect bank", "how to add bank", "onboard bank",
+                "link bank", "new bank account", "bank account onboarding"
+            ]
+            if not any(sig in query_lower for sig in bank_guide_signals):
+                resolved = [i for i in resolved if i != "bank_guide"]
+
+        # vendor_guide must have explicit vendor/supplier onboarding signal
+        if "vendor_guide" in resolved:
+            vendor_guide_signals = [
+                "vendor onboarding", "add vendor", "register vendor", "supplier onboarding",
+                "how to add vendor", "vendor registration", "onboard supplier", "create vendor",
+                "new vendor", "vendor guide", "onboard a vendor", "onboard new vendor",
+                "how do i onboard a vendor", "vendor setup", "add a vendor", "vendor process",
+                "how to onboard vendor", "vendor setup guide", "onboard a new vendor"
+            ]
+            if not any(sig in query_lower for sig in vendor_guide_signals):
+                resolved = [i for i in resolved if i != "vendor_guide"]
+
+        # company_guide must have explicit company onboarding signal
+        # "company profile" / "company details" should NOT trigger company_guide
+        if "company_guide" in resolved:
+            company_guide_signals = [
+                "company onboarding", "register company", "company registration",
+                "how to onboard", "start company", "onboard organization",
+                "company setup", "register my company", "set up company",
+                "company register", "registration process",
+                "onboard my company", "how do i onboard my", "explain the company onboarding",
+                "company onboarding process", "onboard my organization"
+            ]
+            if not any(sig in query_lower for sig in company_guide_signals):
+                resolved = [i for i in resolved if i != "company_guide"]
 
         # ═══════════════════════════════════════════════════════════════
         # GROUP 11: SUPPORT CONFLICTS
@@ -2016,10 +2169,10 @@ class ProductionIntentClassifier:
             tool_calls.append({"tool_name": "get_custom_duty_history", "parameters": {}})
 
         # ── GST ───────────────────────────────────────────────────────
-        if "fetch_gst_dues" in detected_intents and gstin:
-            tool_calls.append({"tool_name": "fetch_gst_dues", "parameters": {"gstin": gstin}})
+        if "fetch_gst_dues" in detected_intents:
+            tool_calls.append({"tool_name": "fetch_gst_dues", "parameters": {"gstin": gstin or ""}})
 
-        if "pay_gst" in detected_intents and gstin:
+        if "pay_gst" in detected_intents:
             tool_calls.append({"tool_name": "pay_gst", "parameters": {
                 "gstin":          gstin,
                 "challan_number": entities.get("challan_number", ""),
@@ -2027,13 +2180,13 @@ class ProductionIntentClassifier:
                 "tax_type":       entities.get("tax_type", "CGST"),
             }})
 
-        if "create_gst_challan" in detected_intents and gstin:
+        if "create_gst_challan" in detected_intents:
             tool_calls.append({"tool_name": "create_gst_challan", "parameters": {
                 "gstin":         gstin,
                 "return_period": entities.get("return_period", month.replace("-", "") if month else ""),
             }})
 
-        if "get_gst_payment_history" in detected_intents and gstin:
+        if "get_gst_payment_history" in detected_intents:
             tool_calls.append({"tool_name": "get_gst_payment_history", "parameters": {"gstin": gstin}})
 
         # ── ESIC ──────────────────────────────────────────────────────

@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 # ── Your local GST API ─────────────────────────────────────────────────────────
 GST_API_BASE    = "http://localhost:3000"
 GST_CALC_URL    = f"{GST_API_BASE}/gst-calculation"
-API_TIMEOUT     = 10.0
+API_TIMEOUT     = 10.0 
 
 
 class GSTCalculator:
